@@ -157,7 +157,7 @@ def test_diff_evidence_preserves_unicode_numbers_and_adjacent_edits(tmp_path):
     ("", "", []), ("", "新增", ["insert"]), ("删除", "", ["delete"]),
     ("甲\n", "甲", ["delete"]), ("甲\n条款内容\n乙", "甲\n条款\n内容\n乙", ["replace"]),
     ("原文\n内容", "原文\n内容", []),
-    ("重复\n换位甲\n重复\n换位乙", "重复\n换位乙\n重复\n换位甲", ["insert", "delete"]),
+    ("头\n换位甲\n稳定段甲\n稳定段乙\n尾", "头\n稳定段甲\n稳定段乙\n换位甲\n尾", ["move"]),
 ])
 def test_empty_identical_split_and_reordered_text(tmp_path, old, new, kinds):
     assert [c.kind for c in compare(*pair(tmp_path, old, new)).changes] == kinds
@@ -169,6 +169,40 @@ def test_large_replace_uses_exact_common_edges(tmp_path):
     change, = compare(left, right).changes
     assert snippets(left, change.left_edits) == ["7"]
     assert snippets(right, change.right_edits) == ["3"]
+
+
+def test_distant_changes_in_long_document_keep_separate_groups(tmp_path):
+    lines = ["提交期限为 7 天", *(f"不变章节 {i} 的具体条款" for i in range(750)), "费用为 100 元"]
+    edited = ["提交期限为 3 天", *lines[1:-1], "费用为 200 元"]
+    original, new = pair(tmp_path, "\n".join(lines), "\n".join(edited))
+    result = compare(original, new)
+    assert not result.used_coarse_matching
+    assert [c.kind for c in result.changes] == ["replace", "replace"]
+    assert [snippets(original, c.left_edits) for c in result.changes] == [["7"], ["1"]]
+    assert [snippets(new, c.right_edits) for c in result.changes] == [["3"], ["2"]]
+
+
+def test_move_keeps_nearby_true_insertions_and_deletions(tmp_path):
+    shared = "正文甲\n正文乙\n正文丙"
+    original, new = pair(tmp_path, f"目录\n搬迁说明\n旧附注\n{shared}\n结尾",
+                         f"目录\n{shared}\n搬迁说明\n新附注\n结尾")
+    result = compare(original, new)
+    by_kind = {change.kind: change for change in result.changes}
+    assert len(result.changes) == 3 and set(by_kind) == {"move", "insert", "delete"}
+    moved = by_kind["move"]
+    assert moved.left_location == "第 2 行"
+    assert moved.right_location == "第 5 行"
+    assert snippets(original, moved.left_edits) == ["搬迁说明"]
+    assert snippets(new, moved.right_edits) == ["搬迁说明"]
+    assert snippets(original, by_kind["delete"].left_edits) == ["旧附注"]
+    assert snippets(new, by_kind["insert"].right_edits) == ["新附注"]
+
+
+def test_repeated_paragraph_is_not_inferred_as_a_move(tmp_path):
+    shared = "正文甲\n正文乙\n正文丙"
+    original, new = pair(tmp_path, f"目录\n相同条款\n{shared}\n相同条款\n结尾",
+                         f"目录\n{shared}\n相同条款\n相同条款\n结尾")
+    assert {c.kind for c in compare(original, new).changes} == {"insert", "delete"}
 
 
 def test_comparison_checks_cancel_before_work(tmp_path):

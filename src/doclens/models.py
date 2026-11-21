@@ -29,7 +29,7 @@ class Snapshot:
 
 @dataclass(frozen=True, slots=True)
 class Change:
-    kind: Literal["insert", "delete", "replace"]
+    kind: Literal["insert", "delete", "replace", "move"]
     left: Span
     right: Span
     left_location: str

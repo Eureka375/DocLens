@@ -6,6 +6,8 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: window
     required property QtObject controller
+    required property QtObject workspace
+    required property QtObject analysis
     width: 1120
     height: 720
     minimumWidth: 760
@@ -20,32 +22,51 @@ ApplicationWindow {
     }
 
     onClosing: function(event) {
-        if (controller.busy) {
+        if (workInProgress) {
             event.accepted = false;
-            controller.cancel();
             closeWhenIdle = true;
+            controller.cancel();
+            workspace.cancel();
+            analysis.cancel();
         }
     }
     property bool closeWhenIdle: false
-    Connections {
-        target: window.controller
-        function onBusyChanged() {
-            if (window.closeWhenIdle && !window.controller.busy)
-                Qt.callLater(window.close);
-        }
+    readonly property bool workInProgress: controller.busy || workspace.busy || analysis.busy
+    onWorkInProgressChanged: {
+        if (closeWhenIdle && !workInProgress)
+            Qt.callLater(window.close);
+    }
+
+    WorkspaceDialog {
+        id: searchDialog
+        objectName: "workspaceDialog"
+        parent: Overlay.overlay
+        width: Math.min(window.width - 36, 1040)
+        height: Math.min(window.height - 36, 680)
+        backend: window.workspace
+    }
+    AnalysisDialog {
+        id: analysisDialog
+        objectName: "analysisDialog"
+        parent: Overlay.overlay
+        width: Math.min(window.width - 36, 910)
+        height: Math.min(window.height - 36, 675)
+        backend: window.analysis
+        changeCount: window.controller.changeCount
+        activeGroup: Math.max(1, window.controller.changeIndex + 1)
     }
 
     FileDialog {
         id: picker
         property string side: "left"
         title: side === "left" ? "选择原文档" : "选择新版文档"
-        nameFilters: ["文本文档 (*.txt *.docx)"]
+        nameFilters: ["文档 (*.txt *.docx *.pdf *.TXT *.DOCX *.PDF)"]
         onAccepted: window.controller.selectFile(side, selectedFile)
     }
 
     Shortcut {
         sequence: "Ctrl+Return"
-        enabled: window.controller.canCompare
+        enabled: window.controller.canCompare && !searchDialog.visible && !analysisDialog.visible
         onActivated: window.controller.startComparison()
     }
 
@@ -67,6 +88,17 @@ ApplicationWindow {
                     Label { text: "本地文档比对"; color: "#c8ded5"; font.pixelSize: 12 }
                 }
                 Item { Layout.fillWidth: true }
+                Button {
+                    objectName: "openWorkspace"
+                    text: "文件夹检索"
+                    onClicked: searchDialog.open()
+                }
+                Button {
+                    objectName: "openAnalysis"
+                    text: "AI 分析"
+                    enabled: window.controller.changeCount > 0 && !window.controller.busy
+                    onClicked: analysisDialog.open()
+                }
                 BusyIndicator {
                     Layout.preferredWidth: 30
                     Layout.preferredHeight: 30
@@ -125,6 +157,29 @@ ApplicationWindow {
         }
         RowLayout {
             Layout.fillWidth: true
+            Layout.leftMargin: 20
+            Layout.rightMargin: 20
+            Layout.bottomMargin: 12
+            spacing: 10
+            visible: jumpPicker.count > 0
+            Label {
+                text: "跳转到差异"
+                color: "#365448"
+                font.bold: true
+            }
+            ComboBox {
+                id: jumpPicker
+                objectName: "jumpToChange"
+                Accessible.name: "跳转到差异"
+                Layout.fillWidth: true
+                enabled: !window.controller.busy && count > 0
+                model: window.controller.changeEntries
+                currentIndex: window.controller.changeIndex
+                onActivated: index => window.controller.jumpToChange(index)
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.leftMargin: 20
             Layout.rightMargin: 20
@@ -172,7 +227,7 @@ ApplicationWindow {
             Layout.rightMargin: 22
             Layout.topMargin: 10
             Layout.bottomMargin: 12
-            text: window.controller.currentLocation || "支持 TXT 和 DOCX 正文。"
+            text: window.controller.currentLocation || "支持 TXT、DOCX 和文本型 PDF。"
             wrapMode: Text.Wrap
             color: "#4a6259"
             font.pixelSize: 12

@@ -10,11 +10,14 @@ from PySide6.QtGui import QColor, QGuiApplication, QSyntaxHighlighter, QTextChar
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
 
+from .analysis_ui import AnalysisController
 from .diff import compare
 from .documents import DocumentError, read_document
-from .models import Span
+from .models import Change, Span
+from .workspace_ui import WorkspaceController
 
-CHANGE_LABEL = {"insert": "新增", "delete": "删除", "replace": "修改"}
+CHANGE_LABEL = {"insert": "新增", "delete": "删除", "replace": "修改", "move": "移动"}
+MOVE_COLOR = "#d5e6ff"
 
 
 def utf16_offsets(text: str) -> list[int]:
@@ -25,11 +28,14 @@ def utf16_offsets(text: str) -> list[int]:
 
 
 class EvidenceHighlighter(QSyntaxHighlighter):
-    def __init__(self, document, spans: list[tuple[int, int]], color: str):
+    def __init__(self, document, spans: list[tuple[int, int, str]]):
         self._spans = spans
-        self._ends = [end for _, end in spans]
-        self._format = QTextCharFormat()
-        self._format.setBackground(QColor(color))
+        self._ends = [end for _, end, _ in spans]
+        self._formats = {}
+        for color in {color for _, _, color in spans}:
+            fmt = QTextCharFormat()
+            fmt.setBackground(QColor(color))
+            self._formats[color] = fmt
         super().__init__(document)
         layout_enabled = document.isLayoutEnabled()
         document.setLayoutEnabled(False)
@@ -42,12 +48,12 @@ class EvidenceHighlighter(QSyntaxHighlighter):
         start = self.currentBlock().position()
         end = start + len(text.encode("utf-16-le")) // 2
         for index in range(bisect_right(self._ends, start), len(self._spans)):
-            a, b = self._spans[index]
+            a, b, color = self._spans[index]
             if a >= end:
                 break
             low, high = max(start, a), min(end, b)
             if low < high:
-                self.setFormat(low - start, high - low, self._format)
+                self.setFormat(low - start, high - low, self._formats[color])
 
 
 class CompareThread(QThread):
@@ -84,9 +90,13 @@ class CompareThread(QThread):
 class CompareController(QObject):
     changed = Signal()
     busyChanged = Signal()
+    changeEntriesChanged = Signal()
 
-    def __init__(self):
+    def __init__(self, cache_root=None, analysis_network=None):
         super().__init__()
+        self.workspace = WorkspaceController(self, cache_root)
+        self.analysis = AnalysisController(self, analysis_network)
+        self.analysis.evidenceRequested.connect(self._jump_evidence)
         self._paths = {"left": None, "right": None}
         self._encodings = {"left": "utf-8", "right": "utf-8"}
         self._thread = None
@@ -146,14 +156,20 @@ class CompareController(QObject):
     def changeIndex(self) -> int:
         return self._index
 
-    @Property(str, notify=changed)
-    def currentLocation(self) -> str:
-        if self._index == -1:
-            return ""
-        change = self._changes[self._index]
+    @staticmethod
+    def _change_location(change: Change) -> str:
         return f"{CHANGE_LABEL[change.kind]} · 原文 {change.left_location} / 新版 {change.right_location}"
 
+    @Property("QStringList", notify=changeEntriesChanged)
+    def changeEntries(self) -> list[str]:
+        return [f"{index}. {self._change_location(change)}" for index, change in enumerate(self._changes, 1)]
+
+    @Property(str, notify=changed)
+    def currentLocation(self) -> str:
+        return self._change_location(self._changes[self._index]) if self._index >= 0 else ""
+
     def _reset(self) -> None:
+        self.analysis.invalidate()
         for highlighter in self._highlighters:
             highlighter.setDocument(None)
         self._highlighters.clear()
@@ -164,6 +180,7 @@ class CompareController(QObject):
         for side, editor in self._editors.items():
             editor.setProperty("text", "")
             self._jump(side, 0, 0)
+        self.changeEntriesChanged.emit()
 
     @Slot(str, QUrl)
     def selectFile(self, side: str, url: QUrl) -> None:
@@ -236,15 +253,18 @@ class CompareController(QObject):
             editor = self._editors[side]
             editor.setProperty("text", snapshot.text)
             offsets = self._offsets[side] = utf16_offsets(snapshot.text)
-            spans = [(offsets[span.start], offsets[span.end]) for change in self._changes
-                     for span in getattr(change, side + "_edits")]
+            spans = sorted((offsets[span.start], offsets[span.end], MOVE_COLOR if change.kind == "move" else color)
+                           for change in self._changes for span in getattr(change, side + "_edits"))
             if spans:
                 document = self._wrappers[side].textDocument()
-                self._highlighters.append(EvidenceHighlighter(document, spans, color))
+                self._highlighters.append(EvidenceHighlighter(document, spans))
+        self.changeEntriesChanged.emit()
         if self._changes:
+            self.analysis.set_comparison(left, right, comparison)
             counts = Counter(change.kind for change in self._changes)
-            self._status = f"{len(self._changes)} 组差异 · 新增 {counts['insert']} · 删除 {counts['delete']} · 修改 {counts['replace']}"
-            self.navigate(1)
+            totals = " · ".join(f"{label} {counts[kind]}" for kind, label in CHANGE_LABEL.items())
+            self._status = f"{len(self._changes)} 组差异 · {totals}"
+            self.jumpToChange(0)
         else:
             self._status = "两份文档提取的正文无文字差异。"
 
@@ -256,8 +276,14 @@ class CompareController(QObject):
     def navigate(self, direction: int) -> None:
         if not self._changes:
             return
-        self._index = max(0, min(self._index + direction, len(self._changes) - 1))
-        change = self._changes[self._index]
+        self.jumpToChange(max(0, min(self._index + direction, len(self._changes) - 1)))
+
+    @Slot(int)
+    def jumpToChange(self, index: int) -> None:
+        if not 0 <= index < len(self._changes):
+            return
+        self._index = index
+        change = self._changes[index]
         for side, boundary, edits in (("left", change.left, change.left_edits),
                                       ("right", change.right, change.right_edits)):
             offsets = self._offsets[side]
@@ -266,10 +292,22 @@ class CompareController(QObject):
         self.changed.emit()
 
 
-def create_window() -> tuple[QQmlApplicationEngine, QQuickWindow, CompareController]:
-    controller = CompareController()
+    @Slot(int, str, int, int)
+    def _jump_evidence(self, index: int, side: str, start: int, end: int) -> None:
+        if not 0 <= index < len(self._changes) or side not in self._offsets:
+            return
+        offsets = self._offsets[side]
+        if not 0 <= start <= end < len(offsets):
+            return
+        self.jumpToChange(index)
+        self._jump(side, offsets[start], offsets[end])
+
+
+def create_window(*, cache_root=None, analysis_network=None) -> tuple[QQmlApplicationEngine, QQuickWindow, CompareController]:
+    controller = CompareController(cache_root, analysis_network)
     engine = QQmlApplicationEngine()
-    engine.setInitialProperties({"controller": controller})
+    engine.setInitialProperties({"controller": controller, "workspace": controller.workspace,
+                                 "analysis": controller.analysis})
     engine.load(QUrl.fromLocalFile(str(Path(__file__).with_name("ui") / "Main.qml")))
     if not engine.rootObjects():
         raise RuntimeError("DocLens could not load its QML window")
