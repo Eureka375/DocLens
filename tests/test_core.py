@@ -118,7 +118,7 @@ def test_long_vertical_merge_does_not_repeat_or_lose_text(tmp_path):
 
 @pytest.mark.parametrize("name, data, code", [
     ("broken.docx", b"not a zip", "invalid_docx"),
-    ("unsupported.pdf", b"%PDF", "unsupported"),
+    ("unsupported.rtf", b"rtf", "unsupported"),
     ("large.txt", b"a" * 100_001, "text_limit"),
 ])
 def test_invalid_files(tmp_path, name, data, code):

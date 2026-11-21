@@ -1,8 +1,11 @@
 from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from hashlib import sha256
 from io import BytesIO
+import logging
 from pathlib import Path
 import os
+from threading import get_ident
 from zipfile import BadZipFile, ZipFile
 from zlib import error as CompressionError
 
@@ -11,6 +14,8 @@ from docx.opc.exceptions import PackageNotFoundError
 from docx.table import _Cell
 from docx.text.paragraph import Paragraph
 from lxml.etree import XMLSyntaxError
+from pypdf import PdfReader, apply_configuration
+from pypdf.errors import DependencyError, FileNotDecryptedError, LimitReachedError, PyPdfError, WrongPasswordError
 
 from .models import Snapshot, Span, TextBlock
 
@@ -18,6 +23,10 @@ MAX_FILE_BYTES = 10 * 1024 * 1024
 MAX_ARCHIVE_BYTES = 32 * 1024 * 1024
 MAX_ARCHIVE_ENTRIES = 2048
 MAX_TEXT_LENGTH = 100_000
+MAX_PDF_PAGES = 300
+MAX_PDF_STREAM_BYTES = 4 * 1024 * 1024
+MAX_PDF_CONTENT_BYTES = 16 * 1024 * 1024
+SUPPORTED_EXTENSIONS = frozenset((".txt", ".docx", ".pdf"))
 WORD_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 MATH_NS = "{http://schemas.openxmlformats.org/officeDocument/2006/math}"
 REVISION_TAGS = {
@@ -51,7 +60,7 @@ def _state(stat: os.stat_result) -> tuple[int, ...]:
     return stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns
 
 
-def _read_bytes(path: Path) -> bytes:
+def read_document_bytes(path: Path) -> bytes:
     try:
         with path.open("rb") as source:
             before = os.fstat(source.fileno())
@@ -127,18 +136,125 @@ def _docx_blocks(data: bytes, check_cancelled: Callable[[], None]) -> tuple[list
         raise DocumentError("invalid_docx", "DOCX 已损坏、加密或结构不受支持。请尝试另存为新的 DOCX。") from exc
 
 
+class _PdfExtractionWarnings(logging.Handler):
+    def __init__(self):
+        super().__init__(logging.WARNING)
+        self.thread = get_ident()
+        self.limit_reached = False
+        self.form_skipped = False
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if record.thread != self.thread or record.name != "pypdf._page":
+            return
+        message = record.getMessage()
+        # pypdf reports skipped forms through logging while returning the remaining text.
+        if "form XObject invocations while extracting text" in message:
+            self.limit_reached = True
+        elif message.startswith(("Detected cyclic form XObject", "Impossible to decode XFormObject")):
+            self.form_skipped = True
+
+
+@contextmanager
+def _pdf_extraction_warnings() -> Iterator[_PdfExtractionWarnings]:
+    logger = logging.getLogger("pypdf")
+    handler = _PdfExtractionWarnings()
+    logger.addHandler(handler)
+    try:
+        yield handler
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
+
+
+def _pdf_blocks(data: bytes, check_cancelled: Callable[[], None]) -> tuple[list[tuple[str, str]], tuple[str, ...]]:
+    rows = []
+    empty_pages = []
+    size = content_bytes = 0
+    try:
+        with apply_configuration(
+            disable_legacy_handling=True,
+            maximum_declared_stream_length=MAX_PDF_STREAM_BYTES,
+            array_based_stream_maximum_output_length=MAX_PDF_STREAM_BYTES,
+            zlib_maximum_output_length=MAX_PDF_STREAM_BYTES,
+            lzw_maximum_output_length=MAX_PDF_STREAM_BYTES,
+            run_length_maximum_output_length=MAX_PDF_STREAM_BYTES,
+            brotli_maximum_output_length=MAX_PDF_STREAM_BYTES,
+            stream_decoding_work_maximum_length=MAX_PDF_CONTENT_BYTES,
+            stream_parsing_work_maximum_count=100_000,
+            page_tree_maximum_page_entries=1024,
+            page_tree_maximum_entries=4096,
+            xform_maximum_invocations_per_extraction=1000,
+        ), _pdf_extraction_warnings() as diagnostics, PdfReader(
+            BytesIO(data), root_object_recovery_limit=1000, xref_stream_maximum_entries=100_000
+        ) as reader:
+            if reader.is_encrypted:
+                raise DocumentError("pdf_encrypted", "PDF 已加密。请先用原工具另存为未加密的副本。")
+            check_cancelled()
+            if len(reader.pages) > MAX_PDF_PAGES:
+                raise DocumentError("pdf_limit", f"PDF 超过 {MAX_PDF_PAGES} 页的读取上限。")
+            for page_no, page in enumerate(reader.pages, 1):
+                check_cancelled()
+                contents = page.get_contents()
+                if contents is not None:
+                    content_bytes += len(contents.get_data())
+                    if content_bytes > MAX_PDF_CONTENT_BYTES:
+                        raise DocumentError("pdf_limit", "PDF 页面内容超过解析上限。请拆分文件后重试。")
+                body = _canonical_newlines(page.extract_text()).replace("\0", "").rstrip("\n")
+                if diagnostics.limit_reached:
+                    raise DocumentError("pdf_limit", f"PDF 第 {page_no} 页内容超过解析上限。请简化该页后重试。")
+                if diagnostics.form_skipped:
+                    raise DocumentError("invalid_pdf", f"PDF 第 {page_no} 页含无法提取的结构。请尝试另存为新的 PDF。")
+                if not body.strip():
+                    empty_pages.append(page_no)
+                    continue
+                size += len(body) + bool(rows)
+                if size > MAX_TEXT_LENGTH:
+                    raise DocumentError("text_limit", "正文超过 100,000 字符的比对上限。")
+                rows.extend((line, f"第 {page_no} 页 / 第 {line_no} 行")
+                            for line_no, line in enumerate(body.split("\n"), 1))
+    except InterruptedError:
+        raise
+    except (FileNotDecryptedError, WrongPasswordError, DependencyError) as exc:
+        raise DocumentError("pdf_encrypted", "PDF 已加密。请先用原工具另存为未加密的副本。") from exc
+    except LimitReachedError as exc:
+        raise DocumentError("pdf_limit", "PDF 页面内容超过解析上限。请拆分文件后重试。") from exc
+    except (PyPdfError, CompressionError, KeyError, ValueError, TypeError, IndexError, AssertionError,
+            RuntimeError, OSError, AttributeError, OverflowError) as exc:
+        raise DocumentError("invalid_pdf", "PDF 已损坏或结构不受支持。请尝试另存为新的 PDF。") from exc
+    if not rows:
+        raise DocumentError("pdf_no_text", "PDF 未提取到可用文字。若为扫描件，请先完成 OCR 再导入。")
+    if not empty_pages:
+        return rows, ()
+    ranges = []
+    start = end = empty_pages[0]
+    for page_no in empty_pages[1:]:
+        if page_no == end + 1:
+            end = page_no
+            continue
+        ranges.append(str(start) if start == end else f"{start}–{end}")
+        start = end = page_no
+    ranges.append(str(start) if start == end else f"{start}–{end}")
+    pages = "、".join(ranges[:8]) + (" 等" if len(ranges) > 8 else "")
+    return rows, (f"第 {pages} 页未提取到文字，共 {len(empty_pages)} 页。若为扫描页，请先完成 OCR。",)
+
+
 def read_document(path: Path, encoding: str = "utf-8", check_cancelled: Callable[[], None] = no_cancel) -> Snapshot:
     path = Path(path)
-    suffix = path.suffix.lower()
-    if suffix not in (".txt", ".docx"):
-        raise DocumentError("unsupported", "请选择 TXT 或 DOCX 文件。")
+    if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+        raise DocumentError("unsupported", "请选择 TXT、DOCX 或 PDF 文件。")
     check_cancelled()
-    data = _read_bytes(path)
+    return parse_snapshot(path, read_document_bytes(path), encoding, check_cancelled)
+
+
+def parse_snapshot(path: Path, data: bytes, encoding: str, check_cancelled: Callable[[], None]) -> Snapshot:
     check_cancelled()
     warnings = ()
+    suffix = path.suffix.lower()
     if suffix == ".docx":
         rows, warnings = _docx_blocks(data, check_cancelled)
-    else:
+    elif suffix == ".pdf":
+        rows, warnings = _pdf_blocks(data, check_cancelled)
+    elif suffix == ".txt":
         if encoding not in ("utf-8", "gb18030"):
             raise ValueError(f"Unsupported TXT encoding: {encoding}")
         try:
@@ -150,6 +266,8 @@ def read_document(path: Path, encoding: str = "utf-8", check_cancelled: Callable
         if len(text) > MAX_TEXT_LENGTH:
             raise DocumentError("text_limit", "正文超过 100,000 字符的比对上限。")
         rows = [(line, f"第 {i} 行") for i, line in enumerate(text.split("\n"), 1)] if text else []
+    else:
+        raise DocumentError("unsupported", "请选择 TXT、DOCX 或 PDF 文件。")
     blocks = []
     cursor = 0
     for text, location in rows:
