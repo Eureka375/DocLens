@@ -35,7 +35,8 @@ def _runs(values: list[int]) -> list[tuple[int, int]]:
 
 def recover_edited_moves(operations: Sequence[Operation], left: list[str], right: list[str],
                          anchors: Sequence[tuple[int, int]],
-                         check_cancelled: Callable[[], None]) -> tuple[Operation, ...]:
+                         check_cancelled: Callable[[], None],
+                         may_pair: Callable[[int, int], bool] | None = None) -> tuple[Operation, ...]:
     """Yield move_replace for high-confidence moved-and-edited one-block pairs.
 
     Position evidence is an unchanged unique anchor crossed by the candidate.
@@ -69,7 +70,7 @@ def recover_edited_moves(operations: Sequence[Operation], left: list[str], right
         check_cancelled()
         for j in dests:
             if (source_owner[i] == dest_owner[j] or left[i] == right[j]
-                    or not crossed(i, j)):
+                    or not crossed(i, j) or (may_pair is not None and not may_pair(i, j))):
                 continue
             if min(len(left[i]), len(right[j])) / max(len(left[i]), len(right[j])) < 0.80:
                 continue
