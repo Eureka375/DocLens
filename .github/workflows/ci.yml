@@ -1,4 +1,4 @@
-name: Regression and diff metrics
+name: Regression, baseline and Windows build
 
 on:
   push:
@@ -9,9 +9,11 @@ on:
 jobs:
   core:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -20,20 +22,24 @@ jobs:
         run: uv sync --locked --python 3.13
       - name: Run non-GUI regression suite
         run: uv run --locked python -m pytest -q --ignore=tests/test_desktop.py
+      - name: Benchmark pinned baseline and candidate
+        run: uv run --locked python scripts/compare_baseline.py --repeats 10 --output build/baseline-comparison.json
       - name: Generate diff metrics
         if: always()
-        run: uv run --locked python scripts/benchmark_diff.py --repeats 3 --output build/diff-metrics.json
+        run: uv run --locked python scripts/benchmark_diff.py --repeats 10 --output build/diff-metrics.json
       - name: Upload metrics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: diff-metrics
-          path: build/diff-metrics.json
+          path: |
+            build/baseline-comparison.json
+            build/diff-metrics.json
           if-no-files-found: ignore
 
   desktop:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
     env:
       QT_QUICK_BACKEND: software
     steps:
@@ -46,3 +52,67 @@ jobs:
         run: uv sync --locked --python 3.13
       - name: Test Windows desktop
         run: uv run --locked python -m pytest -q tests/test_desktop.py
+
+  windows-package:
+    needs: [core, desktop]
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      QT_QUICK_BACKEND: software
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: astral-sh/setup-uv@v6
+      - name: Install dependencies and PyInstaller
+        shell: pwsh
+        run: |
+          uv sync --locked --python 3.13
+          uv pip install --python .venv/Scripts/python.exe PyInstaller==6.22.3
+      - name: Build Windows portable executable
+        shell: pwsh
+        run: |
+          ./scripts/package.ps1
+          if (-not (Test-Path 'dist/DocLens/DocLens.exe')) { throw 'Missing DocLens.exe' }
+          $check = Start-Process -FilePath (Resolve-Path 'dist/DocLens/DocLens.exe').Path -ArgumentList '--help' -Wait -PassThru
+          if ($check.ExitCode -ne 0) { throw "Packaged help smoke failed: $($check.ExitCode)" }
+      - name: Build native installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $compiler)) { throw "Inno Setup compiler not found: $compiler" }
+          & $compiler 'scripts/DocLens.iss'
+          if ($LASTEXITCODE -ne 0) { throw "Installer build failed: $LASTEXITCODE" }
+          if (-not (Test-Path 'dist/DocLens-Setup-0.3.1-x64.exe')) { throw 'Missing installer' }
+      - name: Smoke-test per-user installation
+        shell: pwsh
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'DocLensSmoke'
+          $installer = (Resolve-Path 'dist/DocLens-Setup-0.3.1-x64.exe').Path
+          $args = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=`"$target`""
+          $setup = Start-Process -FilePath $installer -ArgumentList $args -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "Installer smoke failed: $($setup.ExitCode)" }
+          $exe = Join-Path $target 'DocLens.exe'
+          if (-not (Test-Path $exe)) { throw 'Missing installed application' }
+          $check = Start-Process -FilePath $exe -ArgumentList '--help' -Wait -PassThru
+          if ($check.ExitCode -ne 0) { throw "Installed app failed: $($check.ExitCode)" }
+      - name: Zip portable directory and checksum
+        shell: pwsh
+        run: |
+          Compress-Archive -LiteralPath 'dist/DocLens' -DestinationPath 'dist/DocLens-0.3.1-portable-x64.zip' -Force
+          Get-FileHash 'dist/DocLens-0.3.1-portable-x64.zip', 'dist/DocLens-Setup-0.3.1-x64.exe' -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash)  $(Split-Path $_.Path -Leaf)" } |
+            Set-Content 'dist/SHA256SUMS.txt'
+          Get-Content 'dist/SHA256SUMS.txt'
+      - name: Upload Windows application artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: DocLens-0.3.1-windows-x64
+          path: |
+            dist/DocLens-0.3.1-portable-x64.zip
+            dist/DocLens-Setup-0.3.1-x64.exe
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
