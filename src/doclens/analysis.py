@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from hashlib import sha256
 import json
+import re
 from urllib.parse import urlsplit
 
 from .models import Comparison, Snapshot, Span
@@ -29,6 +30,8 @@ kind=move 表示段落文字完全一致但位置变化。仅凭证据不足时�
 仅有数值变化时不推断统计显著性；不把措辞修改直接解释为研究结论改变。章节路径仅为定位上下文。
 每项必须引用提供的证据 ID，最多 12 项；关联比较时引用两侧证据（如提供了两侧）。
 每项涉及某差异组时必须引用该组实际提供的全部侧证据；新增或删除只需该组存在的一侧。
+请为每条结论附上quotes数组，每个证据ID都摘录一段真实连续原文；摘录不能改写，不能捏造。
+格式如"quotes":[{"id":"D1-OLD","text":"30天"},{"id":"D1-NEW","text":"15天"}]。时间金额变化方向需与数字一致。
 尽量覆盖本次提供的每个差异组。summary写可核对的变化事实，impact仅写可能影响或无法判断。
 """
 
@@ -66,6 +69,66 @@ class Finding:
     summary: str
     impact: str
     evidence: tuple[Evidence, ...]
+    verification: str = "仅定位证据ID，需人工核对"
+    quotes: tuple[tuple[str, str], ...] = ()
+
+
+_NUMBER = re.compile(r"(?<!\d)(\d+(?:\.\d+)?)(?!\d)")
+_UP = ("增加", "延长", "提高", "上调", "上涨", "增长")
+_DOWN = ("减少", "缩短", "降低", "下调", "下降", "缩减")
+
+
+def _check_quantitative_direction(category: str, summary: str,
+                                  references: tuple[Evidence, ...]) -> None:
+    """Reject clear one-number directional contradictions, not nuanced claims.
+
+    Multiple numbers, multiple groups or mixed direction words are deliberately
+    left for human review rather than guessed by a rule-based verifier.
+    """
+    if category not in ("time", "amount"):
+        return
+    groups = {e.change_index for e in references}
+    if len(groups) != 1:
+        return
+    old = [e for e in references if e.side == "原文"]
+    new = [e for e in references if e.side == "新版"]
+    if len(old) != 1 or len(new) != 1:
+        return
+    left = _NUMBER.findall(old[0].text)
+    right = _NUMBER.findall(new[0].text)
+    if len(left) != 1 or len(right) != 1:
+        return
+    before, after = float(left[0]), float(right[0])
+    increased, decreased = any(v in summary for v in _UP), any(v in summary for v in _DOWN)
+    if increased == decreased or before == after:
+        return
+    if (increased and after < before) or (decreased and after > before):
+        raise ValueError("方向与数字不符")
+
+
+def _validated_quotes(entry: dict, ids: list[str],
+                      catalog: dict[str, Evidence]) -> tuple[tuple[str, str], ...]:
+    # Legacy models may omit quotes; such findings are explicitly marked
+    # unverified rather than silently presenting their claim as checked.
+    if "quotes" not in entry:
+        return ()
+    rows = entry["quotes"]
+    if not isinstance(rows, list) or len(rows) != len(ids):
+        raise ValueError("引用摘录数量不匹配")
+    found = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError("无效摘录")
+        id_, quote = row.get("id"), row.get("text")
+        if (not isinstance(id_, str) or id_ not in ids or id_ in found
+                or not isinstance(quote, str) or not 2 <= len(quote) <= 240
+                or quote not in catalog[id_].text):
+            raise ValueError("摘录不在原文")
+        found[id_] = quote
+    if set(found) != set(ids):
+        raise ValueError("引用摘录缺失")
+    return tuple((id_, found[id_]) for id_ in ids)
+
 
 
 def _validate_endpoint(value: str) -> None:
@@ -170,7 +233,14 @@ def parse_analysis(response: bytes, draft: AnalysisDraft) -> tuple[Finding, ...]
             required = {e.id for e in draft.evidence if e.change_index in groups}
             if set(ids) != required:
                 raise ValueError
-            result.append(Finding(category, summary.strip(), impact.strip(), cited))
+            quotes = _validated_quotes(entry, ids, catalog)
+            # Directional verification requires literal quotes. Legacy
+            # citation-only responses remain explicitly unverified.
+            if quotes:
+                _check_quantitative_direction(category, summary, cited)
+            verification = ("原文摘录已核对；语义仍需人工判断" if quotes
+                            else "仅定位证据ID，需人工核对")
+            result.append(Finding(category, summary.strip(), impact.strip(), cited, verification, quotes))
         return tuple(result)
     except (ValueError, KeyError, TypeError, AttributeError, IndexError, RecursionError) as exc:
         raise AnalysisError("服务返回的分析缺少有效内容或证据引用，请重试或换用兼容模型。") from exc

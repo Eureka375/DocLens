@@ -975,3 +975,29 @@ def test_home_ai_updates_do_not_replace_active_note_editor(app):
     finally:
         ai.cancel()
         window.close()
+
+
+def test_edited_move_highlights_relocation_and_the_changed_digits(app, tmp_path):
+    old, new = tmp_path / "原版.txt", tmp_path / "新版.txt"
+    old.write_text("封面\n申请人应当在30天内提交完整的设备使用记录。\n稳定审查条款甲\n稳定审查条款乙\n结束",
+                   encoding="utf-8")
+    new.write_text("封面\n稳定审查条款甲\n稳定审查条款乙\n申请人应当在15天内提交完整的设备使用记录。\n结束",
+                   encoding="utf-8")
+    engine, window, controller = create_window()
+    try:
+        for side, file in (("left", old), ("right", new)):
+            controller.selectFile(side, QUrl.fromLocalFile(str(file)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        assert controller.changeCount == 1
+        assert "移动并修改 1" in controller.status
+        assert control(window, "leftText").property("selectedText") == "30"
+        assert control(window, "rightText").property("selectedText") == "15"
+        for side, block_no, edit_color in (("left", 1, "#fbded9"), ("right", 3, "#d4eddc")):
+            editor = control(window, side + "Text")
+            block = editor.property("textDocument").textDocument().findBlockByNumber(block_no)
+            actual = {item.format.background().color().name() for item in block.layout().formats()}
+            assert "#d5e6ff" in actual, actual
+            assert edit_color in actual, actual
+    finally:
+        window.close()

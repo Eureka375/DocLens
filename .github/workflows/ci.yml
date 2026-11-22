@@ -12,6 +12,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -20,6 +22,19 @@ jobs:
         run: uv sync --locked --python 3.13
       - name: Test non-GUI functionality
         run: uv run --locked python -m pytest -q --ignore=tests/test_desktop.py
+      - name: Compare against pinned baseline
+        run: uv run --locked python scripts/compare_baseline.py --repeats 5 --output build/baseline-comparison.json
+      - name: Generate difference metrics
+        run: uv run --locked python scripts/benchmark_diff.py --repeats 5 --output build/diff-metrics.json
+      - name: Upload metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: doclens-integration-metrics
+          path: |
+            build/baseline-comparison.json
+            build/diff-metrics.json
+          if-no-files-found: ignore
 
   desktop:
     runs-on: windows-latest

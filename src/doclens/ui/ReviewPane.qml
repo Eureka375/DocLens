@@ -11,7 +11,7 @@ Rectangle {
     border.color: "#d5dedb"
     radius: 7
     function applyFilter() {
-        backend.setReviewFilter(["all", "insert", "delete", "replace", "move"][kind.currentIndex],
+        backend.setReviewFilter(["all", "insert", "delete", "replace", "move", "move_replace"][kind.currentIndex],
                                 ["all", "pending", "reviewed"][state.currentIndex], query.text);
     }
     ColumnLayout {
@@ -22,7 +22,7 @@ Rectangle {
         Label { text: review.backend.reviewSummary; color: "#53675f" }
         RowLayout {
             Layout.fillWidth: true
-            ComboBox { id: kind; objectName: "reviewKind"; Layout.fillWidth: true; model: ["全部类型", "新增", "删除", "修改", "移动"]; onActivated: review.applyFilter() }
+            ComboBox { id: kind; objectName: "reviewKind"; Layout.fillWidth: true; model: ["全部类型", "新增", "删除", "修改", "移动", "移动并修改"]; onActivated: review.applyFilter() }
             ComboBox { id: state; objectName: "reviewState"; Layout.fillWidth: true; model: ["全部状态", "待核对", "已核对"]; onActivated: review.applyFilter() }
         }
         ComboBox {

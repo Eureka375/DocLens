@@ -4,6 +4,8 @@ from collections.abc import Callable, Iterator, Sequence
 from difflib import SequenceMatcher
 import re
 
+from .alignment import expose_moves, refine_replacements
+from .edited_moves import recover_edited_moves
 from .documents import no_cancel
 from .models import Change, Comparison, Snapshot, Span
 
@@ -107,7 +109,8 @@ def _block_operations(left: list[str], right: list[str], check_cancelled: Callab
 
 
 def _with_moves(operations: Sequence[Operation], left: list[str], right: list[str],
-                check_cancelled: Callable[[], None]) -> Iterator[Operation]:
+                check_cancelled: Callable[[], None],
+                may_pair: Callable[[int, int], bool] | None = None) -> Iterator[Operation]:
     kinds = {operation[0] for operation in operations}
     if not {"insert", "delete"} <= kinds:
         yield from operations
@@ -121,7 +124,8 @@ def _with_moves(operations: Sequence[Operation], left: list[str], right: list[st
         elif kind == "insert":
             inserted.update((right[n], n) for n in range(k, l) if right_counts[right[n]] == 1 and right[n].strip())
     pairs = {deleted[text]: inserted[text] for text in deleted.keys() & inserted.keys()
-             if deleted[text] != inserted[text]}
+             if deleted[text] != inserted[text]
+             and (may_pair is None or may_pair(deleted[text], inserted[text]))}
     if not pairs:
         yield from operations
         return
@@ -228,11 +232,25 @@ def compare(left: Snapshot, right: Snapshot, check_cancelled: Callable[[], None]
     operations, coarse = _structured_operations(left, right, check_cancelled)
     changes = []
     operations = tuple(_paragraph_changes(operations, left, right, check_cancelled))
-    for kind, i, j, k, l in _with_moves(operations, left_blocks, right_blocks, check_cancelled):
+    operations = refine_replacements(operations, left_blocks, right_blocks, check_cancelled)
+    # Structured documents have explicit section paths. Never convert two
+    # unrelated sections' deletions/additions into a move merely because
+    # the text is equal or superficially similar.
+    def same_section(i: int, j: int) -> bool:
+        return left.blocks[i].section_path == right.blocks[j].section_path
+
+    operations = expose_moves(operations, left_blocks, right_blocks, check_cancelled, same_section)
+    operations = tuple(_with_moves(operations, left_blocks, right_blocks, check_cancelled, same_section))
+    if any(kind in ("insert", "delete", "move") or i != k or j != l
+           for kind, i, j, k, l in operations):
+        operations = recover_edited_moves(operations, left_blocks, right_blocks,
+                                          _ordered_anchors(left_blocks, right_blocks), check_cancelled,
+                                          same_section)
+    for kind, i, j, k, l in operations:
         check_cancelled()
         a, left_location = _block_span(left, i, j)
         b, right_location = _block_span(right, k, l)
-        if kind == "replace":
+        if kind in ("replace", "move_replace"):
             edits, approximate = _operations(left.text[a.start:a.end], right.text[b.start:b.end],
                                               CHAR_PAIR_LIMIT, check_cancelled)
             coarse |= approximate

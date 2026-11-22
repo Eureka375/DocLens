@@ -9,7 +9,7 @@ import tempfile
 
 from .models import Comparison, Snapshot
 
-LABELS = {"insert": "新增", "delete": "删除", "replace": "修改", "move": "移动"}
+LABELS = {"insert": "新增", "delete": "删除", "replace": "修改", "move": "移动", "move_replace": "移动并修改"}
 NUMBER = re.compile(r"[-+]?\d+(?:[.,]\d+)*%?")
 COVERAGE_NOTICE = "仅比较已提取正文文字；格式、图片、公式、页眉页脚等不在本次文字比较范围内。原貌显示不代表已比较全部可见内容。"
 

@@ -20,7 +20,7 @@ from .workspace_ui import WorkspaceController
 from .preview import PreviewError, build_preview
 from .review import COVERAGE_NOTICE, ReviewSession
 
-CHANGE_LABEL = {"insert": "新增", "delete": "删除", "replace": "修改", "move": "移动"}
+CHANGE_LABEL = {"insert": "新增", "delete": "删除", "replace": "修改", "move": "移动", "move_replace": "移动并修改"}
 MOVE_COLOR = "#d5e6ff"
 
 
@@ -280,8 +280,24 @@ class CompareController(QObject):
                                        ("right", self._snapshots[1], "#d4eddc")):
             offsets = self._offsets[side]
             field = side + ("_word_edits" if self._word_mode else "_edits")
-            spans = sorted((offsets[s.start], offsets[s.end], MOVE_COLOR if c.kind == "move" else color)
-                           for c in self._changes for s in getattr(c, field))
+            spans = []
+            for c in self._changes:
+                edits = getattr(c, field)
+                if c.kind == "move_replace":
+                    whole = getattr(c, side)
+                    cursor = whole.start
+                    for edit in sorted(edits, key=lambda part: part.start):
+                        if cursor < edit.start:
+                            spans.append((offsets[cursor], offsets[edit.start], MOVE_COLOR))
+                        spans.append((offsets[edit.start], offsets[edit.end], color))
+                        cursor = edit.end
+                    if cursor < whole.end:
+                        spans.append((offsets[cursor], offsets[whole.end], MOVE_COLOR))
+                else:
+                    spans.extend((offsets[s.start], offsets[s.end],
+                                  MOVE_COLOR if c.kind == "move" else color)
+                                 for s in edits)
+            spans.sort(key=lambda item: (item[0], item[1]))
             if spans:
                 self._highlighters.append(EvidenceHighlighter(self._wrappers[side].textDocument(), spans))
 
