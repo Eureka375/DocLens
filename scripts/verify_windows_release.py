@@ -22,6 +22,7 @@ version = args.version
 smart_analysis = tuple(map(int, version.split("."))) >= (0, 4, 1)
 extended_timeout = tuple(map(int, version.split("."))) >= (0, 4, 2)
 review_workflow = tuple(map(int, version.split("."))) >= (0, 5, 0)
+home_ai = tuple(map(int, version.split("."))) >= (0, 5, 1)
 root = Path(__file__).resolve().parents[1]
 dist = root / "dist" / f"v{version}"
 bundle = dist / "DocLens"
@@ -77,6 +78,13 @@ if review_workflow:
                     "AI每批最多4组、每请求12,000字符，每次最多20组、总60,000字符；确认后顺序发送。\n"
                     "失败停止剩余批次并保留已有结果；补充未完成组仍须预览确认。\n"
                     "词级高亮只影响文字视图，原貌标记仍沿用精确文字位置。\n")
+if home_ai:
+    home_qml = review_qml.read_text(encoding="utf-8")
+    assert all(control in home_qml for control in ("reviewAiSummary", "reviewAiStatus", "reviewAiEvidence"))
+    assert "aiHome" in qml
+    with (bundle / "使用说明.md").open("a", encoding="utf-8") as guide:
+        guide.write("\nV0.5.1：AI结果同步显示在首页左侧各组，包含状态、解释、可能影响和原文/新版证据按钮。\n"
+                    "长内容可展开，共同解释标出关联组；在AI窗口点击首页查看返回。\n")
 if args.with_word:
     assert "doclens.preview" in embedded.toc, "Page preview module missing"
     assert (bundle / '_internal' / 'doclens' / 'word_preview.ps1').is_file()
@@ -171,5 +179,7 @@ if extended_timeout:
     report["request_timeout_ms"] = 120_000
 if review_workflow:
     report.update(review_module_bundled=True, review_and_coverage_controls_bundled=True)
+if home_ai:
+    report["home_ai_controls_bundled"] = True
 (report_dir / "package-results.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 print(json.dumps(report, indent=2))

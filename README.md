@@ -1,4 +1,4 @@
-# DocLens 0.5.0
+# DocLens 0.5.1
 
 Windows 桌面文档比对工具，支持双栏比对、文件夹关键词检索和关联原文的 AI 差异解释。比对和检索可离线运行。
 
@@ -6,7 +6,8 @@ Windows 桌面文档比对工具，支持双栏比对、文件夹关键词检索
 
 - 技术方案和早期验证资料保存在项目的本地归档中。
 - [PDF 与段落移动样例](examples/PDF比对/测试指南.md)、[跳转样例](examples/跳转测试/)和 [进阶案例指南](examples/进阶测试案例/测试指南.txt)位于 `examples/`。
-- [Windows 发布包](releases/README.md)按版本保存。当前便携版位于 `dist/v0.5.0/DocLens/`，可运行该目录中的 `DocLens.exe`。
+- [Windows 发布包](releases/README.md)按版本保存。当前便携版位于 `dist/v0.5.1/DocLens/`，可运行该目录中的 `DocLens.exe`。
+- V0.5.1 将AI状态、变化解释、可能影响与证据按钮直接显示到首页左侧对应分组，长内容可展开。[发布说明](releases/v0.5.1/README.md)
 - V0.5.0 增加审阅列表、核对状态/备注、完整HTML报告和AI分批覆盖检查。[设计](docs/design/2026-11-22-review-workflow.md) · [发布说明](releases/v0.5.0/README.md)
 - V0.4.2 将AI等待上限从30秒放宽至120秒，保留随时取消和手动重试。[发布说明](releases/v0.4.2/README.md)
 - V0.4.1 包含学术比较、可配置 AI 请求格式及加密记住 API Key，详见[发布说明](releases/v0.4.1/README.md)。
@@ -57,6 +58,8 @@ uv run --locked python -m doclens examples/原版.txt examples/新版.txt
 
 点击「导出报告」另存为独立HTML，包含全部差异而非仅筛选结果、两侧原文、章节/位置、人工备注与核对状态、已有AI解释及覆盖状态。人工标记不代表模型解释正确。报告只记录文件名和摘要，不包含API Key。备注和核对状态仅保留在本次比较中，重比或换文件会清空，请先导出留档。窗口较窄时隐藏审阅侧栏，仍保留双栏和原有跳转。
 
+AI结果会实时同步到首页左侧对应差异组，默认显示首条解释摘要，可展开完整内容和全部解释；共同引用多组的解释会标出关联编号。每组的“查看原文/新版”直接定位本组证据。失败或未覆盖时保留的旧解释会明确提示。AI窗口点击「首页查看」即可返回；窄窗口会打开左侧审阅抽屉，也可用「审阅列表」开关打开。
+
 ## AI 差异分析
 
 V0.4.1 优先支持论文与实验报告：新增[学术比较案例](examples/学术比较/测试指南.md)和[设计边界](docs/design/2026-11-22-academic-smart-comparison.md)。AI 分类包含研究问题、方法、数据、结果、结论和引用文献；保留通用分类。
@@ -95,10 +98,10 @@ uv run --locked python -m pytest -q
 
 `src/doclens/documents.py` 解析只读快照，`diff.py` 生成差异和原文位置，`workspace.py` 建立本地索引，`analysis.py` 构造请求并校验证据。`tests/` 包含核心与窗口集成用例。
 
-在 Windows 上可用 PyInstaller 重新打包。验证脚本会添加示例、生成 ZIP，并从独立解压目录验证启动。保留整个 `dist/v0.5.0/DocLens` 目录再运行其中的 `DocLens.exe`。
+在 Windows 上可用 PyInstaller 重新打包。验证脚本会添加示例、生成 ZIP，并从独立解压目录验证启动。保留整个 `dist/v0.5.1/DocLens` 目录再运行其中的 `DocLens.exe`。
 
 ```powershell
 uv pip install --python .\.venv\Scripts\python.exe PyInstaller==6.22.3
-.\scripts\package.ps1 -OutputDirectory dist/v0.5.0
-.\.venv\Scripts\python.exe scripts/verify_windows_release.py 0.5.0 --with-word
+.\scripts\package.ps1 -OutputDirectory dist/v0.5.1
+.\.venv\Scripts\python.exe scripts/verify_windows_release.py 0.5.1 --with-word
 ```
