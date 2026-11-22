@@ -1,5 +1,9 @@
 name: Regression, baseline and Windows build
 
+concurrency:
+  group: doclens-regression-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
