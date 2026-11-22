@@ -1,4 +1,4 @@
-# DocLens 0.3.1
+# DocLens 0.4.0
 
 Windows 桌面文档比对工具，支持双栏比对、文件夹关键词检索和关联原文的 AI 差异解释。比对和检索可离线运行。
 
@@ -6,13 +6,16 @@ Windows 桌面文档比对工具，支持双栏比对、文件夹关键词检索
 
 - 技术方案和早期验证资料保存在项目的本地归档中。
 - [PDF 与段落移动样例](examples/PDF比对/测试指南.md)、[跳转样例](examples/跳转测试/)和 [进阶案例指南](examples/进阶测试案例/测试指南.txt)位于 `examples/`。
-- [Windows 发布包](releases/README.md)按版本保存。当前便携版位于 `dist/v0.3.1/DocLens/`，可运行该目录中的 `DocLens.exe`。
+- [Windows 发布包](releases/README.md)按版本保存。当前便携版位于 `dist/v0.4.0/DocLens/`，可运行该目录中的 `DocLens.exe`。
+- V0.4.0 新增[原貌比较](docs/design/2026-11-22-original-layout.md)：PDF 直接显示原页面，DOCX 使用本机 Microsoft Word 将临时副本转换为只读页面；保留标题、字体、表格、图片、页眉与分页的显示。参见[示例](examples/原貌比对/测试指南.md)和[验证截图](docs/validation/original-layout/验证报告.md)。
 - 后续成果按 [项目存放约定](AGENTS.md)归档。
 - V0.3.1 包含结构化解析与分层比较：[开源核验及设计](docs/design/2026-11-22-open-source-review.md)、[源码验证记录](docs/validation/structured-comparison/验证报告.md)、[打包验证](docs/validation/v0.3.1/验证报告.md)、[结构化比对示例](examples/结构化比对/测试指南.md)。
 
 ## 启动
 
 分别选择原文档与新版文档，点击「开始比对」。旧内容用红色高亮，新内容用绿色高亮，识别到的移动段落在双栏用蓝色高亮。打开「跳转到差异」列表可直接选择任意一组，双栏会滚动到对应原文。「上一处」和「下一处」可逐项浏览。PDF 差异标注页码与提取后的行号。
+
+DOCX/PDF 默认显示原貌，两列可分别切换“原貌 / 文字”，并缩小、适宽或放大页面。DOCX 原貌需要本机安装并激活 Microsoft Word；PDF 原貌不依赖 Word。没有 Word、转换失败或预览超限时仍可用文字视图。页面上的标记对应正文差异；字体、表格形状、图片和页眉的变化尚不纳入比较。空白或重复文本等无法可靠映射时会提示切换文字核对。原貌预览最多 80 页，并有图像和临时存储总量限制。
 
 在项目根目录用 PowerShell 执行。需要 Python 3.13 和 uv。首次安装依赖需要联网。
 
@@ -73,10 +76,10 @@ uv run --locked python -m pytest -q
 
 `src/doclens/documents.py` 解析只读快照，`diff.py` 生成差异和原文位置，`workspace.py` 建立本地索引，`analysis.py` 构造请求并校验证据。`tests/` 包含核心与窗口集成用例。
 
-在 Windows 上可用 PyInstaller 重新打包。验证脚本会添加示例、生成 ZIP，并从独立解压目录验证启动。保留整个 `dist/v0.3.1/DocLens` 目录再运行其中的 `DocLens.exe`。
+在 Windows 上可用 PyInstaller 重新打包。验证脚本会添加示例、生成 ZIP，并从独立解压目录验证启动。保留整个 `dist/v0.4.0/DocLens` 目录再运行其中的 `DocLens.exe`。
 
 ```powershell
 uv pip install --python .\.venv\Scripts\python.exe PyInstaller==6.22.3
-.\scripts\package.ps1 -OutputDirectory dist/v0.3.1
-.\.venv\Scripts\python.exe scripts/verify_windows_release.py 0.3.1
+.\scripts\package.ps1 -OutputDirectory dist/v0.4.0
+.\.venv\Scripts\python.exe scripts/verify_windows_release.py 0.4.0 --with-word
 ```
