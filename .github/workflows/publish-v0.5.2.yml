@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_RUN: "44997792762"
       SOURCE_SHA: "afb22cf73cbd4d351ce2a088ee93acba6d247361"
     steps:
