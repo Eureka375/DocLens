@@ -42,7 +42,7 @@ def refine_replacements(operations: Sequence[Operation], left: list[str], right:
     for kind, i, j, k, l in operations:
         check_cancelled()
         n, m = j - i, l - k
-        if (kind != "replace" or n * m > ALIGNMENT_CELLS or n == m == 1
+        if (kind != "replace" or n * m > ALIGNMENT_CELLS or min(n, m) < 2
                 or sum(map(len, left[i:j])) + sum(map(len, right[k:l])) > ALIGNMENT_TEXT_LIMIT):
             result.append((kind, i, j, k, l))
             continue
