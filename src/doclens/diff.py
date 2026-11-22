@@ -3,6 +3,7 @@ from collections import Counter
 from collections.abc import Callable, Iterator, Sequence
 from difflib import SequenceMatcher
 
+from .alignment import expose_moves, refine_replacements
 from .documents import no_cancel
 from .models import Change, Comparison, Snapshot, Span
 
@@ -152,6 +153,8 @@ def compare(left: Snapshot, right: Snapshot, check_cancelled: Callable[[], None]
         return Comparison((), False)
     left_blocks, right_blocks = [b.text for b in left.blocks], [b.text for b in right.blocks]
     operations, coarse = _block_operations(left_blocks, right_blocks, check_cancelled)
+    operations = refine_replacements(operations, left_blocks, right_blocks, check_cancelled)
+    operations = expose_moves(operations, left_blocks, right_blocks, check_cancelled)
     changes = []
     for kind, i, j, k, l in _with_moves(operations, left_blocks, right_blocks, check_cancelled):
         check_cancelled()
