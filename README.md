@@ -1,4 +1,4 @@
-# DocLens 0.4.2
+# DocLens 0.5.0
 
 Windows 桌面文档比对工具，支持双栏比对、文件夹关键词检索和关联原文的 AI 差异解释。比对和检索可离线运行。
 
@@ -6,7 +6,8 @@ Windows 桌面文档比对工具，支持双栏比对、文件夹关键词检索
 
 - 技术方案和早期验证资料保存在项目的本地归档中。
 - [PDF 与段落移动样例](examples/PDF比对/测试指南.md)、[跳转样例](examples/跳转测试/)和 [进阶案例指南](examples/进阶测试案例/测试指南.txt)位于 `examples/`。
-- [Windows 发布包](releases/README.md)按版本保存。当前便携版位于 `dist/v0.4.2/DocLens/`，可运行该目录中的 `DocLens.exe`。
+- [Windows 发布包](releases/README.md)按版本保存。当前便携版位于 `dist/v0.5.0/DocLens/`，可运行该目录中的 `DocLens.exe`。
+- V0.5.0 增加审阅列表、核对状态/备注、完整HTML报告和AI分批覆盖检查。[设计](docs/design/2026-11-22-review-workflow.md) · [发布说明](releases/v0.5.0/README.md)
 - V0.4.2 将AI等待上限从30秒放宽至120秒，保留随时取消和手动重试。[发布说明](releases/v0.4.2/README.md)
 - V0.4.1 包含学术比较、可配置 AI 请求格式及加密记住 API Key，详见[发布说明](releases/v0.4.1/README.md)。
 - V0.4.0 新增[原貌比较](docs/design/2026-11-22-original-layout.md)：PDF 直接显示原页面，DOCX 使用本机 Microsoft Word 将临时副本转换为只读页面；保留标题、字体、表格、图片、页眉与分页的显示。参见[示例](examples/原貌比对/测试指南.md)和[验证截图](docs/validation/original-layout/验证报告.md)。
@@ -50,17 +51,25 @@ uv run --locked python -m doclens examples/原版.txt examples/新版.txt
 
 检索支持区分大小写的字面查询，包括一两字中文和标点。结果按文件相关性和段落位置排序。一条结果定位该段落的首次命中。索引最多扫描 500 份文档，正文总量最多 500 万码点和 10 万文本块，结果最多显示 200 条。
 
+## 差异审阅与导出
+
+宽窗口左侧显示差异清单，可按类型、核对状态和AI类别筛选，也可搜索章节、正文或备注；点击某组跳回双栏原文。AI类别来自实际解释，未分析的组显示未分类。可逐组标记已核对、记录最多2,000字符的备注，备注回车或离开输入框时保存。勾选词级高亮可在文字视图保留完整英文词和数字范围，中文仍逐字显示。
+
+点击「导出报告」另存为独立HTML，包含全部差异而非仅筛选结果、两侧原文、章节/位置、人工备注与核对状态、已有AI解释及覆盖状态。人工标记不代表模型解释正确。报告只记录文件名和摘要，不包含API Key。备注和核对状态仅保留在本次比较中，重比或换文件会清空，请先导出留档。窗口较窄时隐藏审阅侧栏，仍保留双栏和原有跳转。
+
 ## AI 差异分析
 
 V0.4.1 优先支持论文与实验报告：新增[学术比较案例](examples/学术比较/测试指南.md)和[设计边界](docs/design/2026-11-22-academic-smart-comparison.md)。AI 分类包含研究问题、方法、数据、结果、结论和引用文献；保留通用分类。
 
 「请求格式」可选择自动识别、通用 Chat Completions、JSON 模式或 DeepSeek 格式。自动识别保持原有行为；JSON 模式需服务支持 `response_format`。其他鉴权方式和非 Chat Completions 协议尚不支持。每条 AI 解释必须完整引用所涉及差异组已提供的两侧证据（增删只有一侧）；无效响应会拒绝显示，仍可继续本地比对。章节路径也会随所选差异发送，在确认页可查看。
 
-TXT/PDF 新增常见学术章节识别。编号标题仅推断内置的学术章节名称，首级限 1–20、最多六级且总长不超过80字符；自定义编号标题按普通段落比较，避免样本数和带单位小数被误认作标题。词级编辑范围已加入核心模型（英文词、小数、中文逐字），界面继续使用原有字符高亮。
+TXT/PDF 新增常见学术章节识别。编号标题仅推断内置的学术章节名称，首级限 1–20、最多六级且总长不超过80字符；自定义编号标题按普通段落比较，避免样本数和带单位小数被误认作标题。文字视图可选择字符或词级高亮（英文词、小数、中文逐字）；原貌标记仍沿用精确文字位置。
 
 1. 完成比对后点击「AI 分析」，输入服务的完整 HTTPS Chat Completions 地址、模型名称和 API Key。使用 DeepSeek 官方服务时，填 `https://api.deepseek.com/chat/completions` 和 `deepseek-flash`，密钥从 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 创建。DocLens 会为该地址使用 DeepSeek 的 `max_tokens` 和 JSON 输出。其他服务使用 `max_completion_tokens`，并须支持 Bearer 认证和非流式聊天响应。
-2. 选择差异起止编号，点击「预览待发送内容」。查看实际片段、接收服务和模型后，再点击「确认发送」。片段来自选中的差异组，每次最多 20 组和 12,000 个请求数据字符。估算上限按字符计，模型供应商的 Token 限额单独生效。
+2. 选择差异起止编号，点击「预览待发送内容」。查看全部批次、实际片段、接收服务和模型后，再点击「确认发送」。一次最多选20组，自动按每批最多4组顺序发送；每个请求最多12,000个数据字符，整个授权任务最多60,000字符，单组本身超限则拒绝发送。估算按字符计，供应商Token限额单独生效。
 3. 在测试文档选第 1 组时，模型应能从证据读出登记期限由 7 天缩短到 3 天。点击任一证据按钮，窗口会返回双栏并选中对应原文。模型说法应与原文核对。
+
+每批最长等待120秒，显示已完成批次和逐组覆盖状态；服务失败或取消会停止剩余批次并保留成功结果，不自动重发。合法响应遗漏的组显示未覆盖；「补充未完成组」仅预览当前范围内未解释/失败/未发送组，再确认后发送。失败或未覆盖时可能仍显示此前的解释，应结合本轮状态核对。
 
 支持记住 AI 设置：填写服务地址、模型、请求格式和 API Key 后点击「保存设置」，或在确认发送时自动保存。重启后会恢复设置，密钥框显示“已保存”，留空即可使用。API Key 由 Windows 当前用户的 DPAPI 加密保存在应用本地数据目录 `ai-settings.bin`，不会以明文写入配置。保护边界参见 [Windows 文档](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata)。
 
@@ -86,10 +95,10 @@ uv run --locked python -m pytest -q
 
 `src/doclens/documents.py` 解析只读快照，`diff.py` 生成差异和原文位置，`workspace.py` 建立本地索引，`analysis.py` 构造请求并校验证据。`tests/` 包含核心与窗口集成用例。
 
-在 Windows 上可用 PyInstaller 重新打包。验证脚本会添加示例、生成 ZIP，并从独立解压目录验证启动。保留整个 `dist/v0.4.2/DocLens` 目录再运行其中的 `DocLens.exe`。
+在 Windows 上可用 PyInstaller 重新打包。验证脚本会添加示例、生成 ZIP，并从独立解压目录验证启动。保留整个 `dist/v0.5.0/DocLens` 目录再运行其中的 `DocLens.exe`。
 
 ```powershell
 uv pip install --python .\.venv\Scripts\python.exe PyInstaller==6.22.3
-.\scripts\package.ps1 -OutputDirectory dist/v0.4.2
-.\.venv\Scripts\python.exe scripts/verify_windows_release.py 0.4.2 --with-word
+.\scripts\package.ps1 -OutputDirectory dist/v0.5.0
+.\.venv\Scripts\python.exe scripts/verify_windows_release.py 0.5.0 --with-word
 ```

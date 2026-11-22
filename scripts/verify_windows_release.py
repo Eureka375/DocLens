@@ -21,6 +21,7 @@ if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", args.version):
 version = args.version
 smart_analysis = tuple(map(int, version.split("."))) >= (0, 4, 1)
 extended_timeout = tuple(map(int, version.split("."))) >= (0, 4, 2)
+review_workflow = tuple(map(int, version.split("."))) >= (0, 5, 0)
 root = Path(__file__).resolve().parents[1]
 dist = root / "dist" / f"v{version}"
 bundle = dist / "DocLens"
@@ -65,6 +66,17 @@ if smart_analysis:
                     "密钥由Windows当前用户保护，不随便携目录迁移。实际模型需自行配置并核对结果。\n")
         if extended_timeout:
             guide.write("AI分析最长等待120秒，可随时取消；超时后可手动重试。\n")
+if review_workflow:
+    assert "doclens.review" in embedded.toc, "Review report module missing"
+    review_qml = bundle / "_internal" / "doclens" / "ui" / "ReviewPane.qml"
+    assert review_qml.is_file(), "Review pane missing"
+    assert "aiPrepareMissing" in qml and "aiCoverage" in qml
+    with (bundle / "使用说明.md").open("a", encoding="utf-8") as guide:
+        guide.write("\nV0.5.0：宽窗口左侧提供差异审阅列表，支持类型/核对状态/AI类别筛选、搜索、备注和已核对标记。\n"
+                    "备注回车或离开输入框保存；换文件/重比会清空，请用导出HTML报告留档。\n"
+                    "AI每批最多4组、每请求12,000字符，每次最多20组、总60,000字符；确认后顺序发送。\n"
+                    "失败停止剩余批次并保留已有结果；补充未完成组仍须预览确认。\n"
+                    "词级高亮只影响文字视图，原貌标记仍沿用精确文字位置。\n")
 if args.with_word:
     assert "doclens.preview" in embedded.toc, "Page preview module missing"
     assert (bundle / '_internal' / 'doclens' / 'word_preview.ps1').is_file()
@@ -157,5 +169,7 @@ if smart_analysis:
     report.update(ai_modules_bundled=True, settings_controls_bundled=True, user_settings_excluded=True)
 if extended_timeout:
     report["request_timeout_ms"] = 120_000
+if review_workflow:
+    report.update(review_module_bundled=True, review_and_coverage_controls_bundled=True)
 (report_dir / "package-results.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 print(json.dumps(report, indent=2))
