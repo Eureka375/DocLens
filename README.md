@@ -50,6 +50,12 @@ uv run --locked python -m doclens examples/原版.txt examples/新版.txt
 
 ## AI 差异分析
 
+源码增量已优先支持论文与实验报告：新增[学术比较案例](examples/学术比较/测试指南.md)和[设计边界](docs/design/2026-11-22-academic-smart-comparison.md)。AI 分类包含研究问题、方法、数据、结果、结论和引用文献；保留通用分类。现有发布包尚未包含本次源码增量。
+
+「请求格式」可选择自动识别、通用 Chat Completions、JSON 模式或 DeepSeek 格式。自动识别保持原有行为；JSON 模式需服务支持 `response_format`。其他鉴权方式和非 Chat Completions 协议尚不支持。每条 AI 解释必须完整引用所涉及差异组已提供的两侧证据（增删只有一侧）；无效响应会拒绝显示，仍可继续本地比对。章节路径也会随所选差异发送，在确认页可查看。
+
+TXT/PDF 新增常见学术章节识别。编号标题仅推断内置的学术章节名称，首级限 1–20、最多六级且总长不超过80字符；自定义编号标题按普通段落比较，避免样本数和带单位小数被误认作标题。词级编辑范围已加入核心模型（英文词、小数、中文逐字），界面继续使用原有字符高亮。
+
 1. 完成比对后点击「AI 分析」，输入服务的完整 HTTPS Chat Completions 地址、模型名称和 API Key。使用 DeepSeek 官方服务时，填 `https://api.deepseek.com/chat/completions` 和 `deepseek-flash`，密钥从 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 创建。DocLens 会为该地址使用 DeepSeek 的 `max_tokens` 和 JSON 输出。其他服务使用 `max_completion_tokens`，并须支持 Bearer 认证和非流式聊天响应。
 2. 选择差异起止编号，点击「预览待发送内容」。查看实际片段、接收服务和模型后，再点击「确认发送」。片段来自选中的差异组，每次最多 20 组和 12,000 个请求数据字符。估算上限按字符计，模型供应商的 Token 限额单独生效。
 3. 在测试文档选第 1 组时，模型应能从证据读出登记期限由 7 天缩短到 3 天。点击任一证据按钮，窗口会返回双栏并选中对应原文。模型说法应与原文核对。
