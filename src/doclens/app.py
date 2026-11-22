@@ -16,7 +16,7 @@ from .documents import DocumentError, read_document
 from .models import Change, Span
 from .workspace_ui import WorkspaceController
 
-CHANGE_LABEL = {"insert": "新增", "delete": "删除", "replace": "修改", "move": "移动"}
+CHANGE_LABEL = {"insert": "新增", "delete": "删除", "replace": "修改", "move": "移动", "move_replace": "移动并修改"}
 MOVE_COLOR = "#d5e6ff"
 
 
@@ -253,8 +253,26 @@ class CompareController(QObject):
             editor = self._editors[side]
             editor.setProperty("text", snapshot.text)
             offsets = self._offsets[side] = utf16_offsets(snapshot.text)
-            spans = sorted((offsets[span.start], offsets[span.end], MOVE_COLOR if change.kind == "move" else color)
-                           for change in self._changes for span in getattr(change, side + "_edits"))
+            spans = []
+            for change in self._changes:
+                edits = getattr(change, side + "_edits")
+                if change.kind == "move_replace":
+                    # Non-overlapping highlight ranges: blue marks relocation,
+                    # while the changed characters retain red/green emphasis.
+                    whole = getattr(change, side)
+                    cursor = whole.start
+                    for edit in sorted(edits, key=lambda part: part.start):
+                        if cursor < edit.start:
+                            spans.append((offsets[cursor], offsets[edit.start], MOVE_COLOR))
+                        spans.append((offsets[edit.start], offsets[edit.end], color))
+                        cursor = edit.end
+                    if cursor < whole.end:
+                        spans.append((offsets[cursor], offsets[whole.end], MOVE_COLOR))
+                else:
+                    spans.extend((offsets[span.start], offsets[span.end],
+                                  MOVE_COLOR if change.kind == "move" else color)
+                                 for span in edits)
+            spans.sort(key=lambda item: (item[0], item[1]))
             if spans:
                 document = self._wrappers[side].textDocument()
                 self._highlighters.append(EvidenceHighlighter(document, spans))
