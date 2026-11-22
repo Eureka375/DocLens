@@ -324,6 +324,20 @@ def test_replacing_txt_restores_default_encoding(app, tmp_path):
         window.close()
 
 
+def visible_review_list(window):
+    # CI Windows runners can have a 1024px screen: the sidebar is
+    # intentionally replaced by a drawer below 1280px.
+    if window.width() < 1280:
+        drawer = control(window, "homeReviewDrawer")
+        if not drawer.property("opened"):
+            click(window, "reviewToggle")
+            wait_for(lambda: drawer.property("opened"))
+        view = control(window, "drawerReviewList")
+        wait_for(lambda: view.property("width") > 0)
+        return view
+    return control(window, "reviewList")
+
+
 def click_list_item(window, view, index, child_name=None):
     target = "row" if child_name is None else (
         "function find(item) { if (item.objectName === " + json.dumps(child_name) +
@@ -864,7 +878,7 @@ def test_review_panel_edits_and_filters_through_real_controls(app):
             controller.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
         controller.startComparison()
         wait_for(lambda: not controller.busy)
-        view = control(window, "reviewList")
+        view = visible_review_list(window)
         wait_for(lambda: view.property("count") == 5)
         QTest.qWait(40)
         click_list_item(window, view, 0, "reviewNote0")
@@ -906,7 +920,7 @@ def test_home_groups_show_local_ai_findings_status_and_evidence(app):
         assert rows[2]["aiStatus"] == "未分析" and not rows[2]["aiFindings"]
         click(window, "aiHome")
         wait_for(lambda: not control(window, "analysisDialog").property("visible"))
-        view = control(window, "reviewList")
+        view = visible_review_list(window)
         QTest.qWait(50)
         click_list_item(window, view, 0, "reviewAiEvidence0_0_1")
         assert control(window, "rightText").property("selectedText") == "系统应在 3 天内完成登记。"
@@ -945,7 +959,7 @@ def test_home_ai_updates_do_not_replace_active_note_editor(app):
             controller.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
         controller.startComparison()
         wait_for(lambda: not controller.busy)
-        view = control(window, "reviewList")
+        view = visible_review_list(window)
         QTest.qWait(50)
         click_list_item(window, view, 0, "reviewNote0")
         for character in "draft":
