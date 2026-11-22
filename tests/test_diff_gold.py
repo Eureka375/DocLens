@@ -52,7 +52,7 @@ def test_labeled_diff_cases(tmp_path, case):
         if change.kind == "move":
             assert _excerpt(old, change.left) == _excerpt(new, change.right)
     if "edits" in case:
-        matched = next(change for change in result.changes if change.kind == "replace")
+        matched = next(change for change in result.changes if change.kind in ("replace", "move_replace"))
         assert [_excerpt(old, s) for s in matched.left_edits] == case["edits"]["left"]
         assert [_excerpt(new, s) for s in matched.right_edits] == case["edits"]["right"]
 
