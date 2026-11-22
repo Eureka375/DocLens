@@ -4,6 +4,7 @@ from collections import Counter
 import logging
 from pathlib import Path
 import sys
+from tempfile import TemporaryDirectory
 
 from PySide6.QtCore import Property, Q_ARG, QMetaObject, QObject, QThread, Qt, QUrl, Signal, Slot
 from PySide6.QtGui import QColor, QGuiApplication, QSyntaxHighlighter, QTextCharFormat
@@ -15,6 +16,7 @@ from .diff import compare
 from .documents import DocumentError, read_document
 from .models import Change, Span
 from .workspace_ui import WorkspaceController
+from .preview import PreviewError, build_preview
 
 CHANGE_LABEL = {"insert": "新增", "delete": "删除", "replace": "修改", "move": "移动"}
 MOVE_COLOR = "#d5e6ff"
@@ -57,12 +59,15 @@ class EvidenceHighlighter(QSyntaxHighlighter):
 
 
 class CompareThread(QThread):
-    def __init__(self, paths: tuple[Path, Path], encodings: tuple[str, str], parent: QObject):
+    def __init__(self, paths: tuple[Path, Path], encodings: tuple[str, str], parent: QObject,
+                 original_preview: bool = True):
         super().__init__(parent)
         self.paths = paths
         self.encodings = encodings
         self.outcome = None
         self.error = ""
+        self.original_preview = original_preview
+        self.preview_directory = None
 
     def check_cancelled(self) -> None:
         if self.isInterruptionRequested():
@@ -79,7 +84,20 @@ class CompareThread(QThread):
                     return
             comparison = compare(*snapshots, check_cancelled=self.check_cancelled)
             self.check_cancelled()
-            self.outcome = (*snapshots, comparison)
+            previews = {}
+            if self.original_preview:
+                self.preview_directory = TemporaryDirectory(prefix='DocLens-preview-')
+                for side, snapshot in zip(('left', 'right'), snapshots):
+                    try:
+                        previews[side] = build_preview(snapshot, comparison.changes, side,
+                            Path(self.preview_directory.name) / side, self.check_cancelled)
+                    except InterruptedError:
+                        raise
+                    except PreviewError as exc:
+                        previews[side] = {'pages': [], 'warning': str(exc)}
+                    except (OSError, ValueError, RuntimeError):
+                        previews[side] = {'pages': [], 'warning': '原貌预览未完成，可使用文字视图。请确认 Word 已安装并激活，或重新比对。'}
+            self.outcome = (*snapshots, comparison, previews)
         except InterruptedError:
             return
         except Exception:
@@ -92,7 +110,7 @@ class CompareController(QObject):
     busyChanged = Signal()
     changeEntriesChanged = Signal()
 
-    def __init__(self, cache_root=None, analysis_network=None):
+    def __init__(self, cache_root=None, analysis_network=None, original_preview=True):
         super().__init__()
         self.workspace = WorkspaceController(self, cache_root)
         self.analysis = AnalysisController(self, analysis_network)
@@ -109,6 +127,24 @@ class CompareController(QObject):
         self._wrappers = {}
         self._highlighters = []
         self._offsets = {}
+        self._original_preview = original_preview
+        self._previews = {}
+        self._preview_directory = None
+
+    @Property('QVariantList', notify=changed)
+    def leftPreview(self):
+        return self._previews.get('left', {}).get('pages', [])
+
+    @Property('QVariantList', notify=changed)
+    def rightPreview(self):
+        return self._previews.get('right', {}).get('pages', [])
+
+    def clear_previews(self):
+        self._previews = {}
+        self.changed.emit()
+        if self._preview_directory is not None:
+            self._preview_directory.cleanup()
+            self._preview_directory = None
 
     def attach(self, root: QQuickWindow) -> None:
         self._root = root
@@ -169,6 +205,7 @@ class CompareController(QObject):
         return self._change_location(self._changes[self._index]) if self._index >= 0 else ""
 
     def _reset(self) -> None:
+        self.clear_previews()
         self.analysis.invalidate()
         for highlighter in self._highlighters:
             highlighter.setDocument(None)
@@ -211,8 +248,9 @@ class CompareController(QObject):
             return
         self._reset()
         self._cancel_requested = False
-        self._status = "正在读取文档并计算差异…"
-        self._thread = CompareThread(tuple(self._paths.values()), tuple(self._encodings.values()), self)
+        self._status = "正在计算差异并生成原貌预览…" if self._original_preview else "正在读取文档并计算差异…"
+        self._thread = CompareThread(tuple(self._paths.values()), tuple(self._encodings.values()), self,
+                                     self._original_preview)
         self._thread.finished.connect(self._complete)
         self._thread.start()
         self.busyChanged.emit()
@@ -235,19 +273,26 @@ class CompareController(QObject):
             elif thread.outcome is None:
                 self._status = thread.error or "比对未完成，请重试。"
             else:
+                self._preview_directory = thread.preview_directory
+                thread.preview_directory = None
                 self._show_comparison(*thread.outcome)
         finally:
+            if thread.preview_directory is not None:
+                thread.preview_directory.cleanup()
             self._thread = None
             thread.deleteLater()
             self.busyChanged.emit()
             self.changed.emit()
 
-    def _show_comparison(self, left, right, comparison) -> None:
+    def _show_comparison(self, left, right, comparison, previews=None) -> None:
         self._changes = comparison.changes
+        self._previews = previews or {}
         warnings = [f"「{snapshot.path.name}」{warning}"
                     for snapshot in (left, right) for warning in snapshot.warnings]
         if comparison.used_coarse_matching:
             warnings.append("部分差异范围较大，按整段显示。")
+        warnings.extend(f"{'原文' if side == 'left' else '新版'}：{preview['warning']}"
+                        for side, preview in self._previews.items() if preview.get('warning'))
         self._warning = "\n".join(warnings)
         for side, snapshot, color in (("left", left, "#fbded9"), ("right", right, "#d4eddc")):
             editor = self._editors[side]
@@ -259,6 +304,7 @@ class CompareController(QObject):
                 document = self._wrappers[side].textDocument()
                 self._highlighters.append(EvidenceHighlighter(document, spans))
         self.changeEntriesChanged.emit()
+        self.changed.emit()
         if self._changes:
             self.analysis.set_comparison(left, right, comparison)
             counts = Counter(change.kind for change in self._changes)
@@ -271,6 +317,9 @@ class CompareController(QObject):
     def _jump(self, side: str, start: int, end: int) -> None:
         QMetaObject.invokeMethod(self._root, "jump", Qt.DirectConnection,
                                  Q_ARG(str, side), Q_ARG(int, start), Q_ARG(int, end))
+        if self._previews:
+            QMetaObject.invokeMethod(self._root, "jumpPreview", Qt.DirectConnection,
+                                     Q_ARG(str, side), Q_ARG(int, self._index))
 
     @Slot(int)
     def navigate(self, direction: int) -> None:
@@ -303,8 +352,8 @@ class CompareController(QObject):
         self._jump(side, offsets[start], offsets[end])
 
 
-def create_window(*, cache_root=None, analysis_network=None) -> tuple[QQmlApplicationEngine, QQuickWindow, CompareController]:
-    controller = CompareController(cache_root, analysis_network)
+def create_window(*, cache_root=None, analysis_network=None, original_preview=True) -> tuple[QQmlApplicationEngine, QQuickWindow, CompareController]:
+    controller = CompareController(cache_root, analysis_network, original_preview)
     engine = QQmlApplicationEngine()
     engine.setInitialProperties({"controller": controller, "workspace": controller.workspace,
                                  "analysis": controller.analysis})
@@ -313,6 +362,9 @@ def create_window(*, cache_root=None, analysis_network=None) -> tuple[QQmlApplic
         raise RuntimeError("DocLens could not load its QML window")
     window = engine.rootObjects()[0]
     controller.attach(window)
+    app = QGuiApplication.instance()
+    if app is not None:
+        app.aboutToQuit.connect(controller.clear_previews)
     return engine, window, controller
 
 

@@ -14,6 +14,7 @@ import zipfile
 
 parser = argparse.ArgumentParser(description="Verify and archive a built Windows bundle")
 parser.add_argument("version", help="Three-part version, for example 0.3.1")
+parser.add_argument("--with-word", action="store_true", help="Also smoke-test the local Word preview")
 args = parser.parse_args()
 if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", args.version):
     parser.error("version must contain three numeric components")
@@ -28,6 +29,8 @@ if not (bundle / "DocLens.exe").is_file():
 release.mkdir(parents=True, exist_ok=True)
 for name in ("PDF比对", "结构化比对"):
     shutil.copytree(root / "examples" / name, bundle / "示例" / name, dirs_exist_ok=True)
+if args.with_word:
+    shutil.copytree(root / "examples" / "原貌比对", bundle / "示例" / "原貌比对", dirs_exist_ok=True)
 (bundle / "使用说明.md").write_text(
     f"# DocLens V{version} Windows 便携版\n\n"
     "双击本目录 DocLens.exe。保留 _internal 和其余文件，不要单独移动 EXE。\n\n"
@@ -41,6 +44,12 @@ for name in ("PDF比对", "结构化比对"):
 from PyInstaller.archive.readers import CArchiveReader
 embedded = CArchiveReader(str(bundle / "DocLens.exe")).open_embedded_archive("PYZ.pyz")
 assert "doclens.structure" in embedded.toc, "Structured parser missing from frozen application"
+if args.with_word:
+    assert "doclens.preview" in embedded.toc, "Page preview module missing"
+    assert (bundle / '_internal' / 'doclens' / 'word_preview.ps1').is_file()
+    with (bundle / "使用说明.md").open('a', encoding='utf-8') as guide:
+        guide.write('\nWord 原貌预览需要本机 Microsoft Word；PDF 原貌无需 Word。\n'
+                    '[原貌比对样例](示例/原貌比对/测试指南.md)包含标题、表格、图片与分页。\n')
 
 candidate = archive.with_suffix(".part")
 with zipfile.ZipFile(candidate, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=5) as output:
@@ -70,10 +79,13 @@ env["QT_QUICK_BACKEND"] = "software"
 for name in ("QT_QPA_PLATFORM", "PYTHONPATH", "PYTHONHOME"):
     env.pop(name, None)
 checks = []
-for label, documents in (
+cases = [
     ("structured TXT", [str(verified_bundle / "示例" / "结构化比对" / name) for name in ("原版.txt", "新版.txt")]),
     ("PDF", [str(verified_bundle / "示例" / "PDF比对" / name) for name in ("原版.pdf", "新版.pdf")]),
-):
+]
+if args.with_word:
+    cases.append(('Word DOCX', [str(verified_bundle / '示例' / '原貌比对' / name) for name in ('原版.docx', '新版.docx')]))
+for label, documents in cases:
     with subprocess.Popen([str(verified_bundle / "DocLens.exe"), *documents],
                               cwd=verified_bundle, env=env, creationflags=subprocess.CREATE_NO_WINDOW) as process:
         try:
@@ -96,10 +108,10 @@ for label, documents in (
                 user32.EnumWindows(enumerate_window, 0)
                 time.sleep(0.2)
             assert windows_found, f"DocLens window missing (process exit {process.poll()})"
-            time.sleep(1)
+            time.sleep(18 if label == 'Word DOCX' else 1)
             assert process.poll() is None
             assert user32.PostMessageW(windows_found[0], 0x0010, 0, 0)
-            assert process.wait(8) == 0
+            assert process.wait(15) == 0
             print(f"Verified startup and normal close: {label}")
         finally:
             if process.poll() is None:

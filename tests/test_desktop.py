@@ -28,6 +28,60 @@ def wait_for(predicate):
     pytest.fail("Qt did not reach the expected state")
 
 
+def test_original_pdf_preview_switch_and_navigation(app, tmp_path):
+    from test_pdf import write_pdf
+    left, right = tmp_path / 'left.pdf', tmp_path / 'right.pdf'
+    write_pdf(left, [('Deadline 14 days',), ('Amount 100',)])
+    write_pdf(right, [('Deadline 7 days',), ('Amount 200',)])
+    engine, window, controller = create_window()
+    try:
+        controller.selectFile('left', QUrl.fromLocalFile(str(left)))
+        controller.selectFile('right', QUrl.fromLocalFile(str(right)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        assert len(controller.leftPreview) == len(controller.rightPreview) == 2
+        assert controller.changeCount == 2
+        pages = control(window, 'leftPagePreview')
+        assert pages.property('visible')
+        controller.jumpToChange(1)
+        wait_for(lambda: pages.property('contentY') > 0)
+        click(window, 'leftTextView')
+        assert not pages.property('visible')
+        assert control(window, 'leftText').property('selectedText') == '1'
+        click(window, 'leftOriginalView')
+        assert pages.property('visible')
+        preview_folder = controller._preview_directory.name
+        controller._reset()
+        assert not Path(preview_folder).exists()
+    finally:
+        window.close()
+        engine.deleteLater()
+
+
+@pytest.mark.parametrize('reverse', [False, True])
+def test_original_preview_insert_delete_scrolls_both_sides(app, tmp_path, reverse):
+    from test_pdf import write_pdf
+    paths = [tmp_path / 'a.pdf', tmp_path / 'b.pdf']
+    write_pdf(paths[0], [('Deadline 14 days',), ('Tail stable',)])
+    write_pdf(paths[1], [('Deadline 7 days',), ('Tail stable', 'Inserted clause')])
+    if reverse:
+        paths.reverse()
+    engine, window, controller = create_window()
+    try:
+        for side, path in zip(('left', 'right'), paths):
+            controller.selectFile(side, QUrl.fromLocalFile(str(path)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        assert controller.changeCount == 2
+        controller.jumpToChange(1)
+        wait_for(lambda: all(control(window, side + 'PagePreview').property('contentY') > 0
+                             for side in ('left', 'right')))
+    finally:
+        controller.clear_previews()
+        window.close()
+        engine.deleteLater()
+
+
 def control(window, name):
     return window.findChild(QObject, name)
 
@@ -48,7 +102,7 @@ def test_real_txt_docx_workflow(app, tmp_path):
         doc.add_paragraph(line)
     doc.save(modified)
 
-    engine, window, controller = create_window()
+    engine, window, controller = create_window(original_preview=False)
     try:
         assert not controller.canCompare
         controller.selectFile("left", QUrl.fromLocalFile(str(original)))
@@ -99,7 +153,7 @@ def test_navigation_scrolls_to_a_change_far_below_the_viewport(app, tmp_path):
     old.write_text("\n".join(lines), encoding="utf-8")
     lines[0], lines[-1] = "开始 3 天", "结束 4 天"
     new.write_text("\n".join(lines), encoding="utf-8")
-    engine, window, controller = create_window()
+    engine, window, controller = create_window(original_preview=False)
     try:
         for side, path in (("left", old), ("right", new)):
             controller.selectFile(side, QUrl.fromLocalFile(str(path)))
@@ -120,7 +174,7 @@ def test_navigation_scrolls_to_a_change_far_below_the_viewport(app, tmp_path):
 
 def test_jump_picker_selects_nonadjacent_changes_in_the_delivered_example(app):
     sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
-    engine, window, controller = create_window()
+    engine, window, controller = create_window(original_preview=False)
     try:
         for side, name in (("left", "原版.txt"), ("right", "新版.txt")):
             controller.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
@@ -175,7 +229,7 @@ def test_jump_picker_selects_nonadjacent_changes_in_the_delivered_example(app):
 
 def test_pdf_move_jumps_to_both_pages_and_previews_local_evidence(app):
     sample = Path(__file__).resolve().parents[1] / "examples" / "PDF比对"
-    engine, window, controller = create_window()
+    engine, window, controller = create_window(original_preview=False)
     try:
         for side, name in (("left", "原版.pdf"), ("right", "新版.pdf")):
             controller.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
@@ -224,7 +278,7 @@ def test_cancel_discards_pending_comparison(app, tmp_path, monkeypatch):
         return real_read(path, encoding, check_cancelled)
 
     monkeypatch.setattr(module, "read_document", delayed_read)
-    engine, window, controller = create_window()
+    engine, window, controller = create_window(original_preview=False)
     try:
         for side in ("left", "right"):
             controller.selectFile(side, QUrl.fromLocalFile(str(selected)))
@@ -248,7 +302,7 @@ def test_replacing_txt_restores_default_encoding(app, tmp_path):
     new = tmp_path / "UTF8.txt"
     old.write_bytes("文档".encode("gb18030"))
     new.write_bytes("文档".encode("utf-8"))
-    engine, window, controller = create_window()
+    engine, window, controller = create_window(original_preview=False)
     try:
         controller.selectFile("left", QUrl.fromLocalFile(str(old)))
         controller.setEncoding("left", "gb18030")
@@ -285,7 +339,7 @@ def test_folder_search_opens_the_actual_match_in_a_long_file(app, tmp_path):
     path = folder / "项目.txt"
     path.write_text(("普通内容\n" * 120) + "😀申请责任在负责人。\n归档", encoding="utf-8")
     (folder / "坏文件.docx").write_bytes(b"broken")
-    engine, window, controller = create_window(cache_root=tmp_path / "cache")
+    engine, window, controller = create_window(original_preview=False, cache_root=tmp_path / "cache")
     workspace = controller.workspace
     try:
         QTest.qWait(30)
@@ -371,7 +425,7 @@ class FixtureNetwork(QObject):
 def test_ai_preview_approval_cache_and_clickable_local_evidence(app):
     sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
     service = FixtureNetwork()
-    engine, window, controller = create_window(analysis_network=service)
+    engine, window, controller = create_window(original_preview=False, analysis_network=service)
     ai = controller.analysis
     endpoint = "https://models.example/v1/chat/completions"
     try:
@@ -431,7 +485,7 @@ def test_model_service_error_keeps_local_comparison_available(app, code, expecte
     sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
     service = FixtureNetwork()
     service.code = code
-    engine, window, controller = create_window(analysis_network=service)
+    engine, window, controller = create_window(original_preview=False, analysis_network=service)
     ai = controller.analysis
     try:
         for side, name in (("left", "原版.txt"), ("right", "新版.txt")):

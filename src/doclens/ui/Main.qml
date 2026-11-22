@@ -20,6 +20,9 @@ ApplicationWindow {
     function jump(side: string, start: int, end: int) {
         (side === "left" ? leftPane : rightPane).jump(start, end);
     }
+    function jumpPreview(side: string, group: int) {
+        (side === "left" ? leftPane : rightPane).jumpPreview(group);
+    }
 
     onClosing: function(event) {
         if (workInProgress) {
@@ -194,6 +197,8 @@ ApplicationWindow {
                 documentName: window.controller.leftName
                 textEncoding: window.controller.leftEncoding
                 busy: window.controller.busy
+                previewPages: window.controller.leftPreview
+                activeGroup: window.controller.changeIndex
                 onPickFile: { picker.side = side; picker.open(); }
                 onEncodingChangedByUser: value => window.controller.setEncoding(side, value)
             }
@@ -206,6 +211,8 @@ ApplicationWindow {
                 documentName: window.controller.rightName
                 textEncoding: window.controller.rightEncoding
                 busy: window.controller.busy
+                previewPages: window.controller.rightPreview
+                activeGroup: window.controller.changeIndex
                 onPickFile: { picker.side = side; picker.open(); }
                 onEncodingChangedByUser: value => window.controller.setEncoding(side, value)
             }
