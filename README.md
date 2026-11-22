@@ -1,4 +1,4 @@
-# DocLens 0.3.0
+# DocLens 0.3.1
 
 Windows 桌面文档比对工具，支持双栏比对、文件夹关键词检索和关联原文的 AI 差异解释。比对和检索可离线运行。
 
@@ -6,9 +6,9 @@ Windows 桌面文档比对工具，支持双栏比对、文件夹关键词检索
 
 - 技术方案和早期验证资料保存在项目的本地归档中。
 - [PDF 与段落移动样例](examples/PDF比对/测试指南.md)、[跳转样例](examples/跳转测试/)和 [进阶案例指南](examples/进阶测试案例/测试指南.txt)位于 `examples/`。
-- [Windows 发布包](releases/README.md)按版本保存。当前便携版位于 `dist/v0.3.0/DocLens/`，可运行该目录中的 `DocLens.exe`。
+- [Windows 发布包](releases/README.md)按版本保存。当前便携版位于 `dist/v0.3.1/DocLens/`，可运行该目录中的 `DocLens.exe`。
 - 后续成果按 [项目存放约定](AGENTS.md)归档。
-- 源码新增结构化解析与分层比较：[开源核验及设计](docs/design/2026-11-22-open-source-review.md)、[验证记录](docs/validation/structured-comparison/验证报告.md)、[结构化比对示例](examples/结构化比对/测试指南.md)。现有 0.3.0 发布包尚未包含这些源码更新。
+- V0.3.1 包含结构化解析与分层比较：[开源核验及设计](docs/design/2026-11-22-open-source-review.md)、[源码验证记录](docs/validation/structured-comparison/验证报告.md)、[打包验证](docs/validation/v0.3.1/验证报告.md)、[结构化比对示例](examples/结构化比对/测试指南.md)。
 
 ## 启动
 
@@ -73,9 +73,10 @@ uv run --locked python -m pytest -q
 
 `src/doclens/documents.py` 解析只读快照，`diff.py` 生成差异和原文位置，`workspace.py` 建立本地索引，`analysis.py` 构造请求并校验证据。`tests/` 包含核心与窗口集成用例。
 
-在 Windows 上可用 PyInstaller 重新打包。保留整个 `dist/DocLens` 目录再运行其中的 `DocLens.exe`。
+在 Windows 上可用 PyInstaller 重新打包。验证脚本会添加示例、生成 ZIP，并从独立解压目录验证启动。保留整个 `dist/v0.3.1/DocLens` 目录再运行其中的 `DocLens.exe`。
 
 ```powershell
 uv pip install --python .\.venv\Scripts\python.exe PyInstaller==6.22.3
-.\scripts\package.ps1
+.\scripts\package.ps1 -OutputDirectory dist/v0.3.1
+.\.venv\Scripts\python.exe scripts/verify_windows_release.py 0.3.1
 ```
