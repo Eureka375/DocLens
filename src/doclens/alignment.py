@@ -108,7 +108,8 @@ def _runs(indices: list[int]) -> list[tuple[int, int]]:
 
 
 def expose_moves(operations: Sequence[Operation], left: list[str], right: list[str],
-                 check_cancelled: Callable[[], None]) -> tuple[Operation, ...]:
+                 check_cancelled: Callable[[], None],
+                 may_pair: Callable[[int, int], bool] | None = None) -> tuple[Operation, ...]:
     """Expose unique exact moves hidden inside a replace plus a separate edit.
 
     The existing move reconciler can then replace matching delete/insert
@@ -128,7 +129,8 @@ def expose_moves(operations: Sequence[Operation], left: list[str], right: list[s
         text = left[i]
         j = right_unique.get(text)
         if (j is not None and lc[text] == 1 and j in right_owner
-                and i != j and left_owner[i] != right_owner[j]):
+                and i != j and left_owner[i] != right_owner[j]
+                and (may_pair is None or may_pair(i, j))):
             pairs[i] = j
     if not pairs:
         return tuple(operations)
