@@ -12,6 +12,7 @@ from difflib import SequenceMatcher
 Operation = tuple[str, int, int, int, int]
 MAX_CANDIDATES = 100
 MAX_PAIR_CELLS = 6_000
+MAX_SIMILARITY_WORK = 2_000_000  # Upper bound on summed len(a) * len(b) comparisons
 MIN_LENGTH = 16
 MAX_LENGTH = 1200
 MIN_RATIO = 0.86
@@ -63,6 +64,7 @@ def recover_edited_moves(operations: Sequence[Operation], left: list[str], right
                 or (pos < len(anchors) and anchors[pos][1] < j))
 
     scores: dict[tuple[int, int], float] = {}
+    work = 0
     for i in sources:
         check_cancelled()
         for j in dests:
@@ -71,6 +73,9 @@ def recover_edited_moves(operations: Sequence[Operation], left: list[str], right
                 continue
             if min(len(left[i]), len(right[j])) / max(len(left[i]), len(right[j])) < 0.80:
                 continue
+            work += len(left[i]) * len(right[j])
+            if work > MAX_SIMILARITY_WORK:
+                return tuple(operations)  # Conservative bounded fallback.
             score = SequenceMatcher(None, left[i], right[j], autojunk=False).ratio()
             if score >= MIN_RATIO:
                 scores[i, j] = score
