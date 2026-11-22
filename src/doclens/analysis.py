@@ -64,7 +64,7 @@ class Finding:
     quotes: tuple[tuple[str, str], ...] = ()
 
 
-_NUMBER = re.compile(r"(?<!\\d)(\\d+(?:\\.\\d+)?)(?!\\d)")
+_NUMBER = re.compile(r"(?<!\d)(\d+(?:\.\d+)?)(?!\d)")
 _UP = ("增加", "延长", "提高", "上调", "上涨", "增长")
 _DOWN = ("减少", "缩短", "降低", "下调", "下降", "缩减")
 
