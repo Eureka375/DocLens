@@ -1,9 +1,10 @@
 from collections import OrderedDict
+from time import monotonic
 
 from PySide6.QtCore import QObject, Property, QTimer, QUrl, Signal, Slot
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
-from .analysis import CATEGORIES, MAX_REPLY_BYTES, AnalysisError, prepare_analysis, parse_analysis
+from .analysis import CATEGORIES, MAX_REPLY_BYTES, AnalysisError, prepare_batches, parse_analysis
 from .settings import AISettings, AISettingsStore, SettingsError, valid_api_key
 
 MAX_CACHE_ENTRIES = 16
@@ -29,6 +30,19 @@ class AnalysisController(QObject):
         self._draft = None
         self._submitted = None
         self._reply = None
+        self._running = False
+        self._drafts = ()
+        self._pending = []
+        self._run_key = ""
+        self._generation = 0
+        self._run_generation = 0
+        self._run_total = self._run_done = self._cache_hits = 0
+        self._run_groups = set()
+        self.coverage_states = {}
+        self._batch_started = 0
+        self._progress_timer = QTimer(self)
+        self._progress_timer.setInterval(1000)
+        self._progress_timer.timeout.connect(self.changed.emit)
         self._buffer = bytearray()
         self._abort_message = ""
         self._report = ()
@@ -100,14 +114,31 @@ class AnalysisController(QObject):
         self._saved = None
         self._cache.clear()
         self._clear_report()
+        self.coverage_states.clear()
         self.discardPreview()
         self._settings_status = "已清除保存的 AI 设置和分析缓存。"
         self.settingsChanged.emit()
+        self.changed.emit()
         return True
 
     @Property(bool, notify=busyChanged)
     def busy(self) -> bool:
-        return self._reply is not None
+        return self._running or self._reply is not None
+
+    @Property("QVariantList", notify=changed)
+    def coverage(self):
+        if self._comparison is None:
+            return []
+        return [{"group": i + 1, "status": state} for i, state in sorted(self.coverage_states.items())]
+
+    @Property(str, notify=changed)
+    def progress(self):
+        covered = sum(value == "已解释" for value in self.coverage_states.values())
+        wait = int(monotonic() - self._batch_started) if self.busy and self._batch_started else 0
+        return f"完成 {self._run_done} / {self._run_total} 批 · 已解释 {covered} 组" + (f" · 本批已等待 {wait} 秒" if self.busy else "")
+
+    def findings_for_export(self):
+        return self._report
 
     @Property(str, notify=changed)
     def status(self) -> str:
@@ -115,7 +146,7 @@ class AnalysisController(QObject):
 
     @Property(str, notify=changed)
     def preview(self) -> str:
-        return self._draft.preview if self._draft else ""
+        return "\n\n".join(f"第 {i} 批 · {draft.scope}\n{draft.preview}" for i, draft in enumerate(self._drafts, 1))
 
     @Property(str, notify=changed)
     def previewDestination(self) -> str:
@@ -123,7 +154,10 @@ class AnalysisController(QObject):
 
     @Property(str, notify=changed)
     def scope(self) -> str:
-        return self._draft.scope if self._draft else ""
+        if not self._drafts:
+            return ""
+        return (f"本次共 {len(self._drafts)} 批，确认后顺序发送，每批最长等待120秒；失败停止后续发送。\n"
+                + "\n".join(d.scope for d in self._drafts))
 
     @Property("QVariantList", notify=reportChanged)
     def report(self) -> list[dict]:
@@ -136,12 +170,15 @@ class AnalysisController(QObject):
         self._comparison = left, right, comparison
 
     def invalidate(self) -> None:
+        self._generation += 1
         self._comparison = None
         self._draft = None
+        self._drafts = ()
         self._clear_report()
         self._status = "先选择差异范围并预览待发送内容。"
         if self.busy:
             self._abort("当前比对已更改，已取消 AI 分析。")
+        self.coverage_states.clear()
         self.changed.emit()
 
     def _clear_report(self) -> None:
@@ -151,11 +188,21 @@ class AnalysisController(QObject):
     @Slot(int, int, str, str, result=bool)
     @Slot(int, int, str, str, str, result=bool)
     def prepare(self, first: int, last: int, endpoint: str, model: str, provider: str = "auto") -> bool:
+        return self._prepare(first, last, endpoint, model, provider, False)
+
+    @Slot(int, int, str, str, str, result=bool)
+    def prepareMissing(self, first, last, endpoint, model, provider):
+        return self._prepare(first, last, endpoint, model, provider, True)
+
+    def _prepare(self, first, last, endpoint, model, provider, missing):
         if self.busy or self._comparison is None:
             return False
         self._draft = None
+        self._drafts = ()
         try:
-            self._draft = prepare_analysis(*self._comparison, first, last, endpoint, model, provider)
+            only = {i for i in range(first - 1, last) if self.coverage_states.get(i) != "已解释"} if missing else None
+            self._drafts = prepare_batches(*self._comparison, first, last, endpoint, model, provider, only)
+            self._draft = self._drafts[0]
         except AnalysisError as exc:
             self._status = str(exc)
             self.changed.emit()
@@ -168,6 +215,7 @@ class AnalysisController(QObject):
     def discardPreview(self) -> None:
         if self._draft is not None:
             self._draft = None
+            self._drafts = ()
             self._status = "未发送。可以重新生成预览。"
             self.changed.emit()
 
@@ -175,8 +223,8 @@ class AnalysisController(QObject):
     def approveAndSend(self, api_key: str) -> None:
         if self.busy or self._draft is None:
             return
-        draft, self._draft = self._draft, None
-        self._clear_report()
+        draft, drafts = self._draft, self._drafts
+        self._draft, self._drafts = None, ()
         api_key = api_key.strip() or self._key_for(draft.endpoint)
         if not valid_api_key(api_key):
             self._status = "请输入有效的 API Key，然后重新预览。"
@@ -187,20 +235,68 @@ class AnalysisController(QObject):
             self._cache.clear()
             # A storage failure never changes the explicit send authorization.
             self.saveSettings(draft.endpoint, draft.model, api_key, draft.provider)
-        if draft.fingerprint in self._cache:
+        self._pending = list(drafts)
+        self._run_key = api_key
+        self._run_generation = self._generation
+        self._run_total, self._run_done, self._cache_hits = len(drafts), 0, 0
+        self._run_groups = {e.change_index for d in drafts for e in d.evidence}
+        self.coverage_states.update((i, "待发送") for i in self._run_groups)
+        self._running = True
+        self._progress_timer.start()
+        self.busyChanged.emit()
+        self._send_next()
+
+    def _replace_results(self, groups, findings):
+        # A shared explanation may also cover untouched groups; keep it until
+        # all of its groups receive a replacement. Never erase on submission.
+        self._report = tuple(f for f in self._report if not all(e.change_index in groups for e in f.evidence)) + tuple(findings)
+        covered = {e.change_index for f in self._report for e in f.evidence}
+        for i, state in list(self.coverage_states.items()):
+            if state == "已解释" and i not in covered:
+                self.coverage_states[i] = "未覆盖"
+        self.reportChanged.emit()
+
+    def _accept(self, draft, findings):
+        groups = {e.change_index for e in draft.evidence}
+        covered = {e.change_index for f in findings for e in f.evidence}
+        self._replace_results(covered, findings)
+        self.coverage_states.update((i, "已解释" if i in covered else "未覆盖") for i in groups)
+        self._run_done += 1
+
+    def _stop_run(self, message, pending_state="未发送"):
+        if self._run_generation == self._generation:
+            for draft in self._pending:
+                self.coverage_states.update((e.change_index, pending_state) for e in draft.evidence)
+        self._pending.clear()
+        self._run_key = ""
+        self._running = False
+        self._timer.stop()
+        self._progress_timer.stop()
+        self._status = message
+        self.busyChanged.emit()
+        self.changed.emit()
+
+    def _send_next(self):
+        if not self._running:
+            return
+        while self._pending:
+            draft = self._pending.pop(0)
+            if draft.fingerprint not in self._cache:
+                break
             self._cache.move_to_end(draft.fingerprint)
-            self._report = self._cache[draft.fingerprint]
-            self._status = "已使用本次会话缓存。 " + draft.scope.replace("发送", "覆盖", 1)
-            self.reportChanged.emit()
-            self.changed.emit()
+            self._accept(draft, self._cache[draft.fingerprint])
+            self._cache_hits += 1
+        else:
+            uncovered = sum(self.coverage_states.get(i) != "已解释" for i in self._run_groups)
+            cache = " 使用本次会话缓存。" if self._cache_hits else ""
+            self._stop_run(f"分析完成，{len(self._run_groups) - uncovered}/{len(self._run_groups)}组已解释，{uncovered}组未覆盖，可补充分析。" + cache)
             return
         request = QNetworkRequest(QUrl(draft.endpoint, QUrl.ParsingMode.StrictMode))
         if not request.url().isValid():
-            self._status = "服务地址格式有误。"
-            self.changed.emit()
+            self._stop_run("服务地址格式有误。")
             return
         request.setRawHeader(b"Content-Type", b"application/json")
-        request.setRawHeader(b"Authorization", b"Bearer " + api_key.encode("ascii"))
+        request.setRawHeader(b"Authorization", b"Bearer " + self._run_key.encode("ascii"))
         request.setAttribute(QNetworkRequest.Attribute.RedirectPolicyAttribute,
                              QNetworkRequest.RedirectPolicy.ManualRedirectPolicy)
         request.setAttribute(QNetworkRequest.Attribute.AuthenticationReuseAttribute,
@@ -210,6 +306,7 @@ class AnalysisController(QObject):
         request.setAttribute(QNetworkRequest.Attribute.CookieSaveControlAttribute,
                              QNetworkRequest.LoadControl.Manual)
         self._submitted = draft
+        self.coverage_states.update((e.change_index, "分析中") for e in draft.evidence)
         self._buffer.clear()
         self._abort_message = ""
         self._reply = self._network.post(request, draft.body)
@@ -218,13 +315,15 @@ class AnalysisController(QObject):
         self._reply.readyRead.connect(self._read_reply)
         self._reply.finished.connect(self._finished)
         self._timer.start(REQUEST_TIMEOUT_MS)
+        self._batch_started = monotonic()
         self._status = f"服务正在分析已授权的差异，最长等待 {REQUEST_TIMEOUT_MS // 1000} 秒，可取消等待…"
         self.busyChanged.emit()
         self.changed.emit()
 
     @Slot()
     def _read_reply(self) -> None:
-        if not self.busy or self._abort_message:
+        reply = self.sender()
+        if reply is not self._reply or self._abort_message:
             return
         self._buffer.extend(bytes(self._reply.read(MAX_REPLY_BYTES + 1 - len(self._buffer))))
         if len(self._buffer) > MAX_REPLY_BYTES:
@@ -234,6 +333,8 @@ class AnalysisController(QObject):
         if self._reply is not None:
             self._abort_message = message
             self._reply.abort()
+        elif self._running:
+            self._stop_run(message, "已取消")
 
     @Slot()
     def cancel(self) -> None:
@@ -241,12 +342,17 @@ class AnalysisController(QObject):
 
     @Slot()
     def _finished(self) -> None:
-        reply, draft = self._reply, self._submitted
-        if reply is None:
+        reply = self.sender()
+        if reply is not self._reply:
             return
+        draft = self._submitted
         self._timer.stop()
         self._reply = self._submitted = None
+        success = False
         try:
+            if self._run_generation != self._generation:
+                self._status = "当前比对已更改，已取消 AI 分析。"
+                return
             if self._abort_message:
                 self._status = self._abort_message
                 return
@@ -263,21 +369,25 @@ class AnalysisController(QObject):
                 self._status = f"模型服务请求失败（HTTP {code}）。" if code else "无法连接模型服务，请检查地址、网络和 TLS。"
             else:
                 self._buffer.extend(bytes(reply.read(MAX_REPLY_BYTES + 1 - len(self._buffer))))
-                self._report = parse_analysis(bytes(self._buffer), draft)
-                self._cache[draft.fingerprint] = self._report
+                findings = parse_analysis(bytes(self._buffer), draft)
+                self._accept(draft, findings)
+                self._cache[draft.fingerprint] = findings
                 if len(self._cache) > MAX_CACHE_ENTRIES:
                     self._cache.popitem(last=False)
-                self._status = "分析完成。 " + draft.scope.replace("发送", "覆盖", 1)
-                self.reportChanged.emit()
+                success = True
         except AnalysisError as exc:
             self._status = str(exc)
         finally:
-            if not self._report:
-                self._status += " 本地差异仍可使用，可关闭此窗口继续核对原文。"
             self._buffer.clear()
             reply.deleteLater()
-            self.busyChanged.emit()
-            self.changed.emit()
+            if success:
+                self.changed.emit()
+                QTimer.singleShot(0, self._send_next)
+            else:
+                if self._run_generation == self._generation:
+                    state = "已取消" if "取消" in self._status else "失败"
+                    self.coverage_states.update((e.change_index, state) for e in draft.evidence)
+                self._stop_run(self._status + " 本地差异仍可使用，已保留此前成功结果。")
 
     @Slot(int, int)
     def openEvidence(self, finding_index: int, evidence_index: int) -> None:
@@ -295,5 +405,6 @@ class AnalysisController(QObject):
             return
         self._cache.clear()
         self._clear_report()
+        self.coverage_states.clear()
         self._status = "本次会话的 AI 分析缓存已清除。"
         self.changed.emit()

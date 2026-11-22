@@ -12,11 +12,13 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
 
 from .analysis_ui import AnalysisController
+from .analysis import CATEGORIES
 from .diff import compare
 from .documents import DocumentError, read_document
 from .models import Change, Span
 from .workspace_ui import WorkspaceController
 from .preview import PreviewError, build_preview
+from .review import COVERAGE_NOTICE, ReviewSession
 
 CHANGE_LABEL = {"insert": "新增", "delete": "删除", "replace": "修改", "move": "移动"}
 MOVE_COLOR = "#d5e6ff"
@@ -109,12 +111,14 @@ class CompareController(QObject):
     changed = Signal()
     busyChanged = Signal()
     changeEntriesChanged = Signal()
+    reviewChanged = Signal()
 
     def __init__(self, cache_root=None, analysis_network=None, original_preview=True):
         super().__init__()
         self.workspace = WorkspaceController(self, cache_root)
         self.analysis = AnalysisController(self, analysis_network)
         self.analysis.evidenceRequested.connect(self._jump_evidence)
+        self.analysis.reportChanged.connect(self.reviewChanged.emit)
         self._paths = {"left": None, "right": None}
         self._encodings = {"left": "utf-8", "right": "utf-8"}
         self._thread = None
@@ -130,6 +134,113 @@ class CompareController(QObject):
         self._original_preview = original_preview
         self._previews = {}
         self._preview_directory = None
+        self._review = None
+        self._review_filter = ("all", "all", "")
+        self._category_filter = "all"
+        self._word_mode = False
+        self._snapshots = None
+
+    @Property(str, constant=True)
+    def coverageNotice(self):
+        return COVERAGE_NOTICE
+
+    @Property("QVariantList", notify=reviewChanged)
+    def reviewRows(self):
+        if not self._review:
+            return []
+        categories = {}
+        for finding in self.analysis.findings_for_export():
+            for evidence in finding.evidence:
+                categories.setdefault(evidence.change_index, set()).add(finding.category)
+        rows = []
+        for row in self._review.rows(*self._review_filter):
+            assigned = categories.get(row["index"], set())
+            if self._category_filter == "unclassified" and assigned:
+                continue
+            if self._category_filter not in ("all", "unclassified") and self._category_filter not in assigned:
+                continue
+            row["category"] = "、".join(CATEGORIES[c] for c in sorted(assigned)) or "未分类"
+            rows.append(row)
+        return rows
+
+    @Slot(str)
+    def setCategoryFilter(self, category):
+        if category in ("all", "unclassified", *CATEGORIES):
+            self._category_filter = category
+            self.reviewChanged.emit()
+
+    @Property(str, notify=reviewChanged)
+    def reviewSummary(self):
+        if not self._review:
+            return "比对后可核对并导出报告。"
+        done = sum(a["reviewed"] for a in self._review.annotations)
+        return f"已核对 {done} / {len(self._changes)} 组"
+
+    @Slot(str, str, str)
+    def setReviewFilter(self, kind, state, query):
+        if kind in ("all", *CHANGE_LABEL) and state in ("all", "pending", "reviewed"):
+            self._review_filter = kind, state, query
+            self.reviewChanged.emit()
+
+    @Slot(int, bool)
+    def setReviewed(self, index, reviewed):
+        if self._review and 0 <= index < len(self._changes):
+            self._review.update(index, reviewed=reviewed)
+            self.reviewChanged.emit()
+
+    @Slot(int, str)
+    def setReviewNote(self, index, note):
+        if self._review and 0 <= index < len(self._changes):
+            if self._review.annotations[index]["note"] == note:
+                return
+            try:
+                self._review.update(index, note=note)
+            except ValueError as exc:
+                self._status = str(exc)
+                self.changed.emit()
+            # The editor already displays this text. Resetting its ListView on
+            # focus loss would destroy the checkbox receiving the next click.
+
+    @Slot(QUrl, result=bool)
+    def exportReport(self, url):
+        if self.busy or self.analysis.busy or self._review is None or not url.isLocalFile():
+            return False
+        try:
+            self._review.export_html(Path(url.toLocalFile()), self.analysis.findings_for_export(),
+                                     getattr(self.analysis, "coverage_states", {}))
+            self._status = "审阅报告已导出，包含全部差异和已保存备注。"
+        except (OSError, ValueError):
+            self._status = "报告未能导出，请选择可写的HTML文件，不能覆盖输入文档。"
+            self.changed.emit()
+            return False
+        self.changed.emit()
+        return True
+
+    @Property(bool, notify=changed)
+    def wordMode(self):
+        return self._word_mode
+
+    @Slot(bool)
+    def setWordMode(self, enabled):
+        self._word_mode = enabled
+        if self._snapshots:
+            self._highlight_comparison()
+            if self._index >= 0:
+                self.jumpToChange(self._index)
+        self.changed.emit()
+
+    def _highlight_comparison(self):
+        for highlighter in self._highlighters:
+            highlighter.setDocument(None)
+        self._highlighters.clear()
+        for side, snapshot, color in (("left", self._snapshots[0], "#fbded9"),
+                                       ("right", self._snapshots[1], "#d4eddc")):
+            offsets = self._offsets[side]
+            field = side + ("_word_edits" if self._word_mode else "_edits")
+            spans = sorted((offsets[s.start], offsets[s.end], MOVE_COLOR if c.kind == "move" else color)
+                           for c in self._changes for s in getattr(c, field))
+            if spans:
+                self._highlighters.append(EvidenceHighlighter(self._wrappers[side].textDocument(), spans))
 
     @Property('QVariantList', notify=changed)
     def leftPreview(self):
@@ -214,6 +325,9 @@ class CompareController(QObject):
         self._index = -1
         self._warning = ""
         self._offsets.clear()
+        self._review = None
+        self._snapshots = None
+        self.reviewChanged.emit()
         for side, editor in self._editors.items():
             editor.setProperty("text", "")
             self._jump(side, 0, 0)
@@ -286,6 +400,9 @@ class CompareController(QObject):
 
     def _show_comparison(self, left, right, comparison, previews=None) -> None:
         self._changes = comparison.changes
+        self._snapshots = left, right
+        self._review = ReviewSession(left, right, comparison)
+        self.reviewChanged.emit()
         self._previews = previews or {}
         warnings = [f"「{snapshot.path.name}」{warning}"
                     for snapshot in (left, right) for warning in snapshot.warnings]
@@ -298,11 +415,7 @@ class CompareController(QObject):
             editor = self._editors[side]
             editor.setProperty("text", snapshot.text)
             offsets = self._offsets[side] = utf16_offsets(snapshot.text)
-            spans = sorted((offsets[span.start], offsets[span.end], MOVE_COLOR if change.kind == "move" else color)
-                           for change in self._changes for span in getattr(change, side + "_edits"))
-            if spans:
-                document = self._wrappers[side].textDocument()
-                self._highlighters.append(EvidenceHighlighter(document, spans))
+        self._highlight_comparison()
         self.changeEntriesChanged.emit()
         self.changed.emit()
         if self._changes:
@@ -335,6 +448,8 @@ class CompareController(QObject):
         change = self._changes[index]
         for side, boundary, edits in (("left", change.left, change.left_edits),
                                       ("right", change.right, change.right_edits)):
+            if self._word_mode:
+                edits = getattr(change, side + "_word_edits")
             offsets = self._offsets[side]
             target = edits[0] if edits else Span(boundary.start, boundary.start)
             self._jump(side, offsets[target.start], offsets[target.end])

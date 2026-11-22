@@ -8,9 +8,10 @@ ApplicationWindow {
     required property QtObject controller
     required property QtObject workspace
     required property QtObject analysis
-    width: 1120
-    height: 720
+    width: 1440
+    height: 840
     minimumWidth: 760
+    property bool showReview: true
     minimumHeight: 480
     visible: true
     title: "DocLens"
@@ -52,11 +53,20 @@ ApplicationWindow {
         id: analysisDialog
         objectName: "analysisDialog"
         parent: Overlay.overlay
-        width: Math.min(window.width - 36, 910)
-        height: Math.min(window.height - 36, 675)
+        width: Math.min(window.width - 36, 1120)
+        height: Math.min(window.height - 36, 760)
         backend: window.analysis
         changeCount: window.controller.changeCount
         activeGroup: Math.max(1, window.controller.changeIndex + 1)
+    }
+
+    FileDialog {
+        id: reportPicker
+        title: "导出完整审阅报告"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["HTML 报告 (*.html)"]
+        defaultSuffix: "html"
+        onAccepted: window.controller.exportReport(selectedFile)
     }
 
     FileDialog {
@@ -180,14 +190,37 @@ ApplicationWindow {
                 currentIndex: window.controller.changeIndex
                 onActivated: index => window.controller.jumpToChange(index)
             }
+            CheckBox {
+                text: "审阅列表"
+                checked: window.showReview
+                enabled: window.width >= 1280
+                onClicked: window.showReview = checked
+            }
+            CheckBox {
+                objectName: "wordHighlight"
+                text: "词级高亮"
+                checked: window.controller.wordMode
+                onClicked: window.controller.setWordMode(checked)
+            }
+            Button {
+                objectName: "exportReport"
+                text: "导出报告"
+                enabled: !window.workInProgress
+                onClicked: reportPicker.open()
+            }
         }
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.leftMargin: 20
             Layout.rightMargin: 20
-            uniformCellSizes: true
             spacing: 12
+            ReviewPane {
+                Layout.preferredWidth: 285
+                Layout.fillHeight: true
+                visible: window.controller.changeCount > 0 && window.width >= 1280 && window.showReview
+                backend: window.controller
+            }
             DocumentPane {
                 id: leftPane
                 Layout.fillWidth: true
@@ -216,6 +249,17 @@ ApplicationWindow {
                 onPickFile: { picker.side = side; picker.open(); }
                 onEncodingChangedByUser: value => window.controller.setEncoding(side, value)
             }
+        }
+        Label {
+            Layout.fillWidth: true
+            Layout.leftMargin: 22
+            Layout.rightMargin: 22
+            Layout.topMargin: 6
+            text: window.controller.coverageNotice
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            color: "#6b562f"
+            font.pixelSize: 11
         }
         Label {
             Layout.fillWidth: true

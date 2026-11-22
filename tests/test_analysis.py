@@ -144,3 +144,35 @@ def test_academic_evidence_includes_heading_context_without_unchanged_body(tmp_p
     assert payload[0]["section_path"] == ["2 Methods", "2.1 Dataset"]
     assert "2 Methods / 2.1 Dataset" in draft.preview
     assert "UNSELECTED BODY" not in draft.body.decode()
+
+
+def test_batch_plans_cover_every_group_with_small_requests(tmp_path):
+    from doclens.analysis import prepare_batches
+    paths = [tmp_path / "old.txt", tmp_path / "new.txt"]
+    for path, value in zip(paths, (30, 60)):
+        path.write_text("\n".join(f"# Section {i}\nSamples {value}." for i in range(9)), encoding="utf-8")
+    left, right = map(read_document, paths)
+    comparison = compare(left, right)
+    assert len(comparison.changes) == 9
+    batches = prepare_batches(left, right, comparison, 1, 9, "https://models.example/chat/completions", "model")
+    groups = [{e.change_index for e in b.evidence} for b in batches]
+    assert [len(g) for g in groups] == [4, 4, 1]
+    assert set.union(*groups) == set(range(9))
+    assert len(set.intersection(groups[0], groups[1])) == 0
+    assert all(len(json.loads(b.body)["messages"][1]["content"]) <= 12_000 for b in batches)
+    missing = prepare_batches(left, right, comparison, 1, 9, "https://models.example/chat/completions", "model",
+                              only={1, 7})
+    assert {e.change_index for b in missing for e in b.evidence} == {1, 7}
+
+
+def test_batch_budget_splits_before_send_and_rejects_oversized_task(tmp_path, monkeypatch):
+    import doclens.analysis as analysis
+    paths = [tmp_path / "old.txt", tmp_path / "new.txt"]
+    for path, value in zip(paths, ("old", "new")):
+        path.write_text("\n".join(f"# Section {i}\n" + value + "x" * 3500 for i in range(4)), encoding="utf-8")
+    left, right = map(read_document, paths)
+    args = (left, right, compare(left, right), 1, 4, "https://models.example/chat/completions", "model")
+    assert len(analysis.prepare_batches(*args)) == 4
+    monkeypatch.setattr(analysis, "MAX_TASK_CHARS", 10_000)
+    with pytest.raises(AnalysisError, match="总"):
+        analysis.prepare_batches(*args)

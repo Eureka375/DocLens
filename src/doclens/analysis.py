@@ -8,6 +8,8 @@ from .providers import ProviderConfig
 
 MAX_INPUT_CHARS = 12_000
 MAX_GROUPS = 20
+MAX_BATCH_GROUPS = 4
+MAX_TASK_CHARS = 60_000
 MAX_OUTPUT_TOKENS = 1400
 MAX_REPLY_BYTES = 128 * 1024
 CATEGORIES = {
@@ -27,6 +29,7 @@ kind=move 表示段落文字完全一致但位置变化。仅凭证据不足时�
 仅有数值变化时不推断统计显著性；不把措辞修改直接解释为研究结论改变。章节路径仅为定位上下文。
 每项必须引用提供的证据 ID，最多 12 项；关联比较时引用两侧证据（如提供了两侧）。
 每项涉及某差异组时必须引用该组实际提供的全部侧证据；新增或删除只需该组存在的一侧。
+尽量覆盖本次提供的每个差异组。summary写可核对的变化事实，impact仅写可能影响或无法判断。
 """
 
 
@@ -171,3 +174,34 @@ def parse_analysis(response: bytes, draft: AnalysisDraft) -> tuple[Finding, ...]
         return tuple(result)
     except (ValueError, KeyError, TypeError, AttributeError, IndexError, RecursionError) as exc:
         raise AnalysisError("服务返回的分析缺少有效内容或证据引用，请重试或换用兼容模型。") from exc
+
+
+def prepare_batches(left: Snapshot, right: Snapshot, comparison: Comparison,
+                    first: int, last: int, endpoint: str, model: str, provider: str = "auto",
+                    only: set[int] | None = None) -> tuple[AnalysisDraft, ...]:
+    """Preflight every payload before authorization; never crop or silently skip evidence."""
+    if not 1 <= first <= last <= len(comparison.changes) or last - first + 1 > MAX_GROUPS:
+        raise AnalysisError(f"请选择有效范围，一次最多分析 {MAX_GROUPS} 组差异。")
+    indices = [i for i in range(first - 1, last) if only is None or i in only]
+    if not indices:
+        raise AnalysisError("所选范围已全部解释，没有需要补充的差异。")
+    drafts = []
+    while indices:
+        count = 1
+        while count < min(MAX_BATCH_GROUPS, len(indices)) and indices[count] == indices[count - 1] + 1:
+            count += 1
+        while True:
+            try:
+                draft = prepare_analysis(left, right, comparison, indices[0] + 1, indices[count - 1] + 1,
+                                         endpoint, model, provider)
+                break
+            except AnalysisError:
+                if count == 1:
+                    raise
+                count -= 1
+        drafts.append(draft)
+        indices = indices[count:]
+    total = sum(len(json.loads(d.body)["messages"][1]["content"]) for d in drafts)
+    if total > MAX_TASK_CHARS:
+        raise AnalysisError(f"本次任务总请求数据超过 {MAX_TASK_CHARS:,} 字符，请缩小范围。")
+    return tuple(drafts)

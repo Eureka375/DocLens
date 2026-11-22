@@ -732,3 +732,150 @@ def test_ai_allows_two_minutes_and_releases_pending_request(app, finish):
     finally:
         ai.cancel()
         window.close()
+
+
+def test_review_filters_annotation_export_and_word_navigation(app, tmp_path):
+    sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
+    engine, window, controller = create_window(original_preview=False)
+    try:
+        for side, name in (("left", "原版.txt"), ("right", "新版.txt")):
+            controller.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        assert len(controller.reviewRows) == 5
+        controller.setReviewed(4, True)
+        controller.setReviewNote(4, "最后期限已核对 <script>bad</script>")
+        controller.setReviewFilter("all", "reviewed", "最后期限")
+        assert [r["index"] for r in controller.reviewRows] == [4]
+        controller.jumpToChange(controller.reviewRows[0]["index"])
+        assert control(window, "rightText").property("selectedText") == "90"
+        controller.setWordMode(True)
+        assert controller.wordMode
+        assert control(window, "rightText").property("selectedText") == "90"
+        report = tmp_path / "comparison.html"
+        assert controller.exportReport(QUrl.fromLocalFile(str(report)))
+        html = report.read_text(encoding="utf-8")
+        assert "第1组" in html and "第5组" in html  # Export is not limited by filters.
+        assert "最后期限已核对 &lt;script&gt;bad&lt;/script&gt;" in html
+        assert "格式、图片、公式" in controller.coverageNotice
+        controller.selectFile("right", QUrl.fromLocalFile(str(sample / "原版.txt")))
+        assert not controller.reviewRows
+    finally:
+        window.close()
+
+
+def test_ai_batches_preserve_success_and_retry_only_missing_with_new_approval(app, tmp_path):
+    class PartialNetwork(FixtureNetwork):
+        fail_second = True
+        def post(self, request, body):
+            reply = super().post(request, body)
+            if len(self.calls) == 2 and self.fail_second:
+                reply.code = 500
+            return reply
+    paths = [tmp_path / "old.txt", tmp_path / "new.txt"]
+    for path, count in zip(paths, (30, 60)):
+        path.write_text("\n".join(f"# Section {i}\nSamples {count}." for i in range(9)), encoding="utf-8")
+    service = PartialNetwork()
+    engine, window, controller = create_window(original_preview=False, analysis_network=service)
+    ai = controller.analysis
+    try:
+        for side, path in zip(("left", "right"), paths):
+            controller.selectFile(side, QUrl.fromLocalFile(str(path)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        endpoint = "https://models.example/chat/completions"
+        assert ai.prepare(1, 9, endpoint, "model")
+        assert "3 批" in ai.scope and not service.calls
+        ai.approveAndSend("fictional-key")
+        wait_for(lambda: not ai.busy)
+        assert len(service.calls) == 2  # Failure prevents the third request.
+        assert ai.report and all(ai.coverage_states[i] == "已解释" for i in range(4))
+        assert all(ai.coverage_states[i] == "失败" for i in range(4, 8))
+        assert ai.coverage_states[8] == "未发送"
+        service.fail_second = False
+        assert ai.prepareMissing(1, 9, endpoint, "model", "auto")
+        assert len(service.calls) == 2
+        assert "D1-OLD" not in ai.preview and "D5-OLD" in ai.preview
+        ai.approveAndSend("")
+        wait_for(lambda: not ai.busy)
+        assert len(service.calls) == 4
+        assert all(value == "已解释" for value in ai.coverage_states.values())
+        assert len(ai.report) == 3
+        controller.setCategoryFilter("time")
+        assert len(controller.reviewRows) == 9
+        controller.setCategoryFilter("data")
+        assert not controller.reviewRows
+        controller.setCategoryFilter("all")
+        previous = ai.report
+        service.code = 500
+        assert ai.prepare(1, 9, endpoint, "replacement-model")
+        ai.approveAndSend("")
+        wait_for(lambda: not ai.busy)
+        assert ai.report == previous  # A failed rerun must preserve all prior explanations.
+    finally:
+        ai.cancel()
+        window.close()
+
+
+def test_ai_valid_partial_response_marks_uncovered_and_cancel_discards_queue(app, tmp_path):
+    class OmitNetwork(FixtureNetwork):
+        def post(self, request, body):
+            self.calls.append((request, body))
+            ids = [e["id"] for e in json.loads(json.loads(body)["messages"][1]["content"])][:2]
+            content = {"findings": [{"category": "data", "summary": "样本变化", "impact": "需核对",
+                                     "evidence_ids": ids}]}
+            return FixtureReply(200, json.dumps({"choices": [{"message": {"content": json.dumps(content)}}]}).encode(), self)
+    paths = [tmp_path / "old.txt", tmp_path / "new.txt"]
+    for path, count in zip(paths, (30, 60)):
+        path.write_text("\n".join(f"# S{i}\nSamples {count}." for i in range(5)), encoding="utf-8")
+    service = OmitNetwork()
+    engine, window, controller = create_window(original_preview=False, analysis_network=service)
+    ai = controller.analysis
+    try:
+        for side, path in zip(("left", "right"), paths):
+            controller.selectFile(side, QUrl.fromLocalFile(str(path)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        endpoint = "https://models.example/chat/completions"
+        assert ai.prepare(1, 4, endpoint, "model")
+        ai.approveAndSend("fictional-key")
+        wait_for(lambda: not ai.busy)
+        assert ai.coverage_states[0] == "已解释" and ai.coverage_states[1] == "未覆盖"
+        assert "未覆盖" in ai.status
+        assert ai.prepareMissing(1, 5, endpoint, "model", "auto")
+        ai.approveAndSend("")
+        ai.cancel()
+        wait_for(lambda: not ai.busy)
+        QTest.qWait(60)
+        assert len(service.calls) == 2
+        assert ai.coverage_states[0] == "已解释" and ai.report
+        assert any(state == "已取消" for state in ai.coverage_states.values())
+    finally:
+        ai.cancel()
+        window.close()
+
+
+def test_review_panel_edits_and_filters_through_real_controls(app):
+    sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
+    engine, window, controller = create_window(original_preview=False)
+    try:
+        for side, name in (("left", "原版.txt"), ("right", "新版.txt")):
+            controller.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        view = control(window, "reviewList")
+        wait_for(lambda: view.property("count") == 5)
+        QTest.qWait(40)
+        click_list_item(window, view, 0, "reviewNote0")
+        for character in "reviewed sample note":
+            QTest.keyClick(window, Qt.Key(ord(character.upper())))
+        # Clicking directly must save the note without destroying the checkbox click.
+        click_list_item(window, view, 0, "reviewChecked0")
+        wait_for(lambda: controller.reviewRows[0]["reviewed"])
+        assert controller.reviewRows[0]["note"] == "reviewed sample note"
+        control(window, "reviewQuery").setProperty("text", "reviewed sample note")
+        wait_for(lambda: view.property("count") == 1)
+        click_list_item(window, view, 0, "reviewJump0")
+        assert controller.changeIndex == 0
+    finally:
+        window.close()

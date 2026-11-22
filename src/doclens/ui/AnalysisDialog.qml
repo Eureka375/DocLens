@@ -149,6 +149,15 @@ Dialog {
                 onClicked: analysis.backend.cancel()
             }
             Button {
+                objectName: "aiPrepareMissing"
+                text: "补充未完成组"
+                enabled: analysis.changeCount > 0 && !analysis.backend.busy
+                onClicked: {
+                    if (analysis.backend.prepareMissing(first.value, last.value, endpoint.text, modelName.text, provider.currentValue))
+                        confirmation.open();
+                }
+            }
+            Button {
                 objectName: "aiPrepare"
                 text: "预览待发送内容"
                 highlighted: true
@@ -169,8 +178,29 @@ Dialog {
         }
         Label {
             Layout.fillWidth: true
+            text: analysis.backend.progress
+            color: "#53675f"
+            wrapMode: Text.Wrap
+        }
+        ListView {
+            objectName: "aiCoverage"
+            Layout.fillWidth: true
+            Layout.preferredHeight: visible ? 62 : 0
+            visible: count > 0
+            clip: true
+            model: analysis.backend.coverage
+            ScrollBar.vertical: ScrollBar {}
+            delegate: Label {
+                required property var modelData
+                width: ListView.view.width
+                text: "第 " + modelData.group + " 组 · " + modelData.status
+                color: modelData.status === "已解释" ? "#25483d" : "#845323"
+            }
+        }
+        Label {
+            Layout.fillWidth: true
             visible: analysis.backend.report.length > 0
-            text: "点击证据可回到对应原文。请以原文核对模型解释。"
+            text: "点击证据可回到原文。失败或未覆盖时保留此前解释，请结合本轮状态核对。"
             color: "#53675f"
             font.pixelSize: 12
         }
@@ -210,7 +240,7 @@ Dialog {
                     Label {
                         Layout.fillWidth: true
                         visible: !!card.modelData.impact
-                        text: card.modelData.impact
+                        text: "AI 推测的可能影响（需核对）：" + card.modelData.impact
                         textFormat: Text.PlainText
                         wrapMode: Text.Wrap
                         color: "#415c51"
@@ -261,6 +291,8 @@ Dialog {
                 Layout.fillWidth: true
                 text: analysis.backend.scope
                 wrapMode: Text.Wrap
+                maximumLineCount: 3
+                elide: Text.ElideRight
                 color: "#53675f"
             }
             ScrollView {
