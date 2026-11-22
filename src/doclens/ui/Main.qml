@@ -211,6 +211,7 @@ ApplicationWindow {
                 onActivated: index => window.controller.jumpToChange(index)
             }
             CheckBox {
+                objectName: "reviewToggle"
                 text: "审阅列表"
                 checked: window.width >= 1280 ? window.showReview : homeReviewDrawer.opened
                 onClicked: {
