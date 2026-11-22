@@ -1,5 +1,6 @@
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 from hashlib import sha256
 from io import BytesIO
 import logging
@@ -18,6 +19,7 @@ from pypdf import PdfReader, apply_configuration
 from pypdf.errors import DependencyError, FileNotDecryptedError, LimitReachedError, PyPdfError, WrongPasswordError
 
 from .models import Snapshot, Span, TextBlock
+from .structure import annotate
 
 MAX_FILE_BYTES = 10 * 1024 * 1024
 MAX_ARCHIVE_BYTES = 32 * 1024 * 1024
@@ -76,7 +78,27 @@ def read_document_bytes(path: Path) -> bytes:
     return data
 
 
-def _paragraphs(container, prefix: str, check_cancelled: Callable[[], None], depth: int = 0) -> Iterator[tuple[str, str]]:
+def _paragraph_structure(paragraph: Paragraph) -> tuple[str, int | None]:
+    # Direct formatting wins over inherited styles; use outlineLvl rather than
+    # translated style names so localized and custom Word headings also work.
+    properties = [paragraph._p.pPr]
+    style = paragraph.style
+    visited = set()
+    while style is not None and style.style_id not in visited:
+        visited.add(style.style_id)
+        properties.append(style.element.pPr)
+        style = style.base_style
+    for props in properties:
+        if props is not None and props.outlineLvl is not None:
+            level = props.outlineLvl.val
+            return ("heading", level + 1) if 0 <= level <= 8 else ("paragraph", None)
+    if any(props is not None and props.numPr is not None for props in properties):
+        return "list_item", None
+    return "paragraph", None
+
+
+def _paragraphs(container, prefix: str, check_cancelled: Callable[[], None], depth: int = 0,
+                table_path: tuple[tuple[int, int, int], ...] = ()) -> Iterator[TextBlock]:
     if depth > 32:
         raise DocumentError("table_depth", "DOCX 表格嵌套超过 32 层。")
     paragraph_no = table_no = 0
@@ -85,7 +107,9 @@ def _paragraphs(container, prefix: str, check_cancelled: Callable[[], None], dep
         if isinstance(item, Paragraph):
             paragraph_no += 1
             location = f"{prefix}第 {paragraph_no} 段"
-            yield item.text, location
+            kind, level = _paragraph_structure(item)
+            yield TextBlock(item.text, Span(0, 0), location,
+                            "table_cell" if table_path else kind, level, table_path=table_path)
             continue
         table_no += 1
         for row_no, row in enumerate(item.rows, 1):
@@ -99,10 +123,11 @@ def _paragraphs(container, prefix: str, check_cancelled: Callable[[], None], dep
                     continue
                 cell = _Cell(cell_element, item)
                 location = f"{prefix}表 {table_no} / 第 {row_no} 行第 {col_no} 列 / "
-                yield from _paragraphs(cell, location, check_cancelled, depth + 1)
+                yield from _paragraphs(cell, location, check_cancelled, depth + 1,
+                                       table_path + ((table_no, row_no, col_no),))
 
 
-def _docx_blocks(data: bytes, check_cancelled: Callable[[], None]) -> tuple[list[tuple[str, str]], tuple[str, ...]]:
+def _docx_blocks(data: bytes, check_cancelled: Callable[[], None]) -> tuple[list[TextBlock], tuple[str, ...]]:
     try:
         with ZipFile(BytesIO(data)) as archive:
             entries = archive.infolist()
@@ -122,12 +147,12 @@ def _docx_blocks(data: bytes, check_cancelled: Callable[[], None]) -> tuple[list
             warnings = ("检测到未提取的结构，例如 Word 域、页眉、脚注或图形。比对结果可能未覆盖全部可见文字。",)
         rows = []
         size = 0
-        for text, location in _paragraphs(document, "", check_cancelled):
-            text = _canonical_newlines(text)
+        for block in _paragraphs(document, "", check_cancelled):
+            text = _canonical_newlines(block.text)
             size += len(text) + bool(rows)
             if size > MAX_TEXT_LENGTH:
                 raise DocumentError("text_limit", "正文超过 100,000 字符的比对上限。")
-            rows.append((text, location))
+            rows.append(replace(block, text=text))
         return rows, warnings
     except InterruptedError:
         raise
@@ -166,7 +191,7 @@ def _pdf_extraction_warnings() -> Iterator[_PdfExtractionWarnings]:
         handler.close()
 
 
-def _pdf_blocks(data: bytes, check_cancelled: Callable[[], None]) -> tuple[list[tuple[str, str]], tuple[str, ...]]:
+def _pdf_blocks(data: bytes, check_cancelled: Callable[[], None]) -> tuple[list[TextBlock], tuple[str, ...]]:
     rows = []
     empty_pages = []
     size = content_bytes = 0
@@ -210,7 +235,7 @@ def _pdf_blocks(data: bytes, check_cancelled: Callable[[], None]) -> tuple[list[
                 size += len(body) + bool(rows)
                 if size > MAX_TEXT_LENGTH:
                     raise DocumentError("text_limit", "正文超过 100,000 字符的比对上限。")
-                rows.extend((line, f"第 {page_no} 页 / 第 {line_no} 行")
+                rows.extend(TextBlock(line, Span(0, 0), f"第 {page_no} 页 / 第 {line_no} 行", page=page_no)
                             for line_no, line in enumerate(body.split("\n"), 1))
     except InterruptedError:
         raise
@@ -265,13 +290,15 @@ def parse_snapshot(path: Path, data: bytes, encoding: str, check_cancelled: Call
             raise DocumentError("invalid_txt", "TXT 包含无法显示的空字符。请另存为 UTF-8 文本后重试。")
         if len(text) > MAX_TEXT_LENGTH:
             raise DocumentError("text_limit", "正文超过 100,000 字符的比对上限。")
-        rows = [(line, f"第 {i} 行") for i, line in enumerate(text.split("\n"), 1)] if text else []
+        rows = [TextBlock(line, Span(0, 0), f"第 {i} 行")
+                for i, line in enumerate(text.split("\n"), 1)] if text else []
     else:
         raise DocumentError("unsupported", "请选择 TXT、DOCX 或 PDF 文件。")
     blocks = []
     cursor = 0
-    for text, location in rows:
-        blocks.append(TextBlock(text, Span(cursor, cursor + len(text)), location))
-        cursor += len(text) + 1
+    for block in rows:
+        blocks.append(replace(block, span=Span(cursor, cursor + len(block.text))))
+        cursor += len(block.text) + 1
     check_cancelled()
-    return Snapshot(path, sha256(data).hexdigest(), "\n".join(row[0] for row in rows), tuple(blocks), warnings)
+    return Snapshot(path, sha256(data).hexdigest(), "\n".join(row.text for row in rows),
+                    annotate(blocks, infer_headings=suffix != ".docx"), warnings)

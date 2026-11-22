@@ -1,5 +1,5 @@
 ; DocLens Windows installer (requires the onedir PyInstaller build).
-#define AppVersion "0.3.1"
+#define AppVersion "0.5.1"
 
 [Setup]
 AppId={{7425DB23-1334-4479-A52B-687DE71D1057}

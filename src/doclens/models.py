@@ -16,6 +16,11 @@ class TextBlock:
     text: str
     span: Span
     location: str
+    kind: Literal["paragraph", "heading", "list_item", "table_cell"] = "paragraph"
+    heading_level: int | None = None
+    section_path: tuple[str, ...] = ()
+    table_path: tuple[tuple[int, int, int], ...] = ()
+    page: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +41,8 @@ class Change:
     right_location: str
     left_edits: tuple[Span, ...]
     right_edits: tuple[Span, ...]
+    left_word_edits: tuple[Span, ...] = ()
+    right_word_edits: tuple[Span, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

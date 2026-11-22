@@ -4,6 +4,7 @@ from collections import Counter
 import logging
 from pathlib import Path
 import sys
+from tempfile import TemporaryDirectory
 
 from PySide6.QtCore import Property, Q_ARG, QMetaObject, QObject, QThread, Qt, QUrl, Signal, Slot
 from PySide6.QtGui import QColor, QGuiApplication, QSyntaxHighlighter, QTextCharFormat
@@ -11,10 +12,13 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
 
 from .analysis_ui import AnalysisController
+from .analysis import CATEGORIES
 from .diff import compare
 from .documents import DocumentError, read_document
 from .models import Change, Span
 from .workspace_ui import WorkspaceController
+from .preview import PreviewError, build_preview
+from .review import COVERAGE_NOTICE, ReviewSession
 
 CHANGE_LABEL = {"insert": "新增", "delete": "删除", "replace": "修改", "move": "移动", "move_replace": "移动并修改"}
 MOVE_COLOR = "#d5e6ff"
@@ -57,12 +61,15 @@ class EvidenceHighlighter(QSyntaxHighlighter):
 
 
 class CompareThread(QThread):
-    def __init__(self, paths: tuple[Path, Path], encodings: tuple[str, str], parent: QObject):
+    def __init__(self, paths: tuple[Path, Path], encodings: tuple[str, str], parent: QObject,
+                 original_preview: bool = True):
         super().__init__(parent)
         self.paths = paths
         self.encodings = encodings
         self.outcome = None
         self.error = ""
+        self.original_preview = original_preview
+        self.preview_directory = None
 
     def check_cancelled(self) -> None:
         if self.isInterruptionRequested():
@@ -79,7 +86,20 @@ class CompareThread(QThread):
                     return
             comparison = compare(*snapshots, check_cancelled=self.check_cancelled)
             self.check_cancelled()
-            self.outcome = (*snapshots, comparison)
+            previews = {}
+            if self.original_preview:
+                self.preview_directory = TemporaryDirectory(prefix='DocLens-preview-')
+                for side, snapshot in zip(('left', 'right'), snapshots):
+                    try:
+                        previews[side] = build_preview(snapshot, comparison.changes, side,
+                            Path(self.preview_directory.name) / side, self.check_cancelled)
+                    except InterruptedError:
+                        raise
+                    except PreviewError as exc:
+                        previews[side] = {'pages': [], 'warning': str(exc)}
+                    except (OSError, ValueError, RuntimeError):
+                        previews[side] = {'pages': [], 'warning': '原貌预览未完成，可使用文字视图。请确认 Word 已安装并激活，或重新比对。'}
+            self.outcome = (*snapshots, comparison, previews)
         except InterruptedError:
             return
         except Exception:
@@ -91,8 +111,10 @@ class CompareController(QObject):
     changed = Signal()
     busyChanged = Signal()
     changeEntriesChanged = Signal()
+    reviewChanged = Signal()
+    reviewAnalysisChanged = Signal()
 
-    def __init__(self, cache_root=None, analysis_network=None):
+    def __init__(self, cache_root=None, analysis_network=None, original_preview=True):
         super().__init__()
         self.workspace = WorkspaceController(self, cache_root)
         self.analysis = AnalysisController(self, analysis_network)
@@ -109,6 +131,190 @@ class CompareController(QObject):
         self._wrappers = {}
         self._highlighters = []
         self._offsets = {}
+        self._original_preview = original_preview
+        self._previews = {}
+        self._preview_directory = None
+        self._review = None
+        self._review_filter = ("all", "all", "")
+        self._category_filter = "all"
+        self._word_mode = False
+        self._snapshots = None
+        self._analysis_signature = None
+        self.analysis.reportChanged.connect(self._sync_review_analysis)
+        self.analysis.changed.connect(self._sync_review_analysis)
+
+    @Slot()
+    def _sync_review_analysis(self):
+        signature = (tuple(sorted(self.analysis.coverage_states.items())), self.analysis.findings_for_export())
+        if signature == self._analysis_signature:
+            return
+        self._analysis_signature = signature
+        self.reviewAnalysisChanged.emit()
+        if self._category_filter != "all":
+            self.reviewChanged.emit()
+
+    @Property("QVariantMap", notify=reviewAnalysisChanged)
+    def reviewAnalysis(self):
+        result = {}
+        if not self._review:
+            return result
+        for index, status in self.analysis.coverage_states.items():
+            if 0 <= index < len(self._changes):
+                result[str(index)] = {"aiStatus": status, "aiFindings": [], "categoryIds": []}
+        for finding_index, finding in enumerate(self.analysis.findings_for_export()):
+            groups = sorted({e.change_index for e in finding.evidence})
+            for group in groups:
+                if not 0 <= group < len(self._changes):
+                    continue
+                entry = result.setdefault(str(group), {"aiStatus": "未分析", "aiFindings": [], "categoryIds": []})
+                if finding.category not in entry["categoryIds"]:
+                    entry["categoryIds"].append(finding.category)
+                entry["aiFindings"].append({
+                    "index": finding_index, "category": CATEGORIES[finding.category],
+                    "summary": finding.summary, "impact": finding.impact,
+                    "groups": [i + 1 for i in groups],
+                    "evidence": [{"index": i, "side": e.side, "id": e.id}
+                                 for i, e in enumerate(finding.evidence) if e.change_index == group],
+                })
+        for entry in result.values():
+            entry["category"] = "、".join(CATEGORIES[c] for c in entry["categoryIds"]) or "未分类"
+        return result
+
+    @Slot(int, int)
+    def openAnalysisEvidence(self, finding_index, evidence_index):
+        self.analysis.openEvidence(finding_index, evidence_index)
+
+    @Property(str, constant=True)
+    def coverageNotice(self):
+        return COVERAGE_NOTICE
+
+    @Property("QVariantList", notify=reviewChanged)
+    def reviewRows(self):
+        if not self._review:
+            return []
+        analysis = self.reviewAnalysis
+        rows = []
+        for row in self._review.rows(*self._review_filter):
+            entry = analysis.get(str(row["index"]), {"aiStatus": "未分析", "aiFindings": [],
+                                                     "categoryIds": [], "category": "未分类"})
+            assigned = entry["categoryIds"]
+            if self._category_filter == "unclassified" and assigned:
+                continue
+            if self._category_filter not in ("all", "unclassified") and self._category_filter not in assigned:
+                continue
+            row.update(entry)
+            rows.append(row)
+        return rows
+
+    @Slot(str)
+    def setCategoryFilter(self, category):
+        if category in ("all", "unclassified", *CATEGORIES):
+            self._category_filter = category
+            self.reviewChanged.emit()
+
+    @Property(str, notify=reviewChanged)
+    def reviewSummary(self):
+        if not self._review:
+            return "比对后可核对并导出报告。"
+        done = sum(a["reviewed"] for a in self._review.annotations)
+        return f"已核对 {done} / {len(self._changes)} 组"
+
+    @Slot(str, str, str)
+    def setReviewFilter(self, kind, state, query):
+        if kind in ("all", *CHANGE_LABEL) and state in ("all", "pending", "reviewed"):
+            self._review_filter = kind, state, query
+            self.reviewChanged.emit()
+
+    @Slot(int, bool)
+    def setReviewed(self, index, reviewed):
+        if self._review and 0 <= index < len(self._changes):
+            self._review.update(index, reviewed=reviewed)
+            self.reviewChanged.emit()
+
+    @Slot(int, str)
+    def setReviewNote(self, index, note):
+        if self._review and 0 <= index < len(self._changes):
+            if self._review.annotations[index]["note"] == note:
+                return
+            try:
+                self._review.update(index, note=note)
+            except ValueError as exc:
+                self._status = str(exc)
+                self.changed.emit()
+            # The editor already displays this text. Resetting its ListView on
+            # focus loss would destroy the checkbox receiving the next click.
+
+    @Slot(QUrl, result=bool)
+    def exportReport(self, url):
+        if self.busy or self.analysis.busy or self._review is None or not url.isLocalFile():
+            return False
+        try:
+            self._review.export_html(Path(url.toLocalFile()), self.analysis.findings_for_export(),
+                                     getattr(self.analysis, "coverage_states", {}))
+            self._status = "审阅报告已导出，包含全部差异和已保存备注。"
+        except (OSError, ValueError):
+            self._status = "报告未能导出，请选择可写的HTML文件，不能覆盖输入文档。"
+            self.changed.emit()
+            return False
+        self.changed.emit()
+        return True
+
+    @Property(bool, notify=changed)
+    def wordMode(self):
+        return self._word_mode
+
+    @Slot(bool)
+    def setWordMode(self, enabled):
+        self._word_mode = enabled
+        if self._snapshots:
+            self._highlight_comparison()
+            if self._index >= 0:
+                self.jumpToChange(self._index)
+        self.changed.emit()
+
+    def _highlight_comparison(self):
+        for highlighter in self._highlighters:
+            highlighter.setDocument(None)
+        self._highlighters.clear()
+        for side, snapshot, color in (("left", self._snapshots[0], "#fbded9"),
+                                       ("right", self._snapshots[1], "#d4eddc")):
+            offsets = self._offsets[side]
+            field = side + ("_word_edits" if self._word_mode else "_edits")
+            spans = []
+            for c in self._changes:
+                edits = getattr(c, field)
+                if c.kind == "move_replace":
+                    whole = getattr(c, side)
+                    cursor = whole.start
+                    for edit in sorted(edits, key=lambda part: part.start):
+                        if cursor < edit.start:
+                            spans.append((offsets[cursor], offsets[edit.start], MOVE_COLOR))
+                        spans.append((offsets[edit.start], offsets[edit.end], color))
+                        cursor = edit.end
+                    if cursor < whole.end:
+                        spans.append((offsets[cursor], offsets[whole.end], MOVE_COLOR))
+                else:
+                    spans.extend((offsets[s.start], offsets[s.end],
+                                  MOVE_COLOR if c.kind == "move" else color)
+                                 for s in edits)
+            spans.sort(key=lambda item: (item[0], item[1]))
+            if spans:
+                self._highlighters.append(EvidenceHighlighter(self._wrappers[side].textDocument(), spans))
+
+    @Property('QVariantList', notify=changed)
+    def leftPreview(self):
+        return self._previews.get('left', {}).get('pages', [])
+
+    @Property('QVariantList', notify=changed)
+    def rightPreview(self):
+        return self._previews.get('right', {}).get('pages', [])
+
+    def clear_previews(self):
+        self._previews = {}
+        self.changed.emit()
+        if self._preview_directory is not None:
+            self._preview_directory.cleanup()
+            self._preview_directory = None
 
     def attach(self, root: QQuickWindow) -> None:
         self._root = root
@@ -169,6 +375,7 @@ class CompareController(QObject):
         return self._change_location(self._changes[self._index]) if self._index >= 0 else ""
 
     def _reset(self) -> None:
+        self.clear_previews()
         self.analysis.invalidate()
         for highlighter in self._highlighters:
             highlighter.setDocument(None)
@@ -177,6 +384,9 @@ class CompareController(QObject):
         self._index = -1
         self._warning = ""
         self._offsets.clear()
+        self._review = None
+        self._snapshots = None
+        self.reviewChanged.emit()
         for side, editor in self._editors.items():
             editor.setProperty("text", "")
             self._jump(side, 0, 0)
@@ -211,8 +421,9 @@ class CompareController(QObject):
             return
         self._reset()
         self._cancel_requested = False
-        self._status = "正在读取文档并计算差异…"
-        self._thread = CompareThread(tuple(self._paths.values()), tuple(self._encodings.values()), self)
+        self._status = "正在计算差异并生成原貌预览…" if self._original_preview else "正在读取文档并计算差异…"
+        self._thread = CompareThread(tuple(self._paths.values()), tuple(self._encodings.values()), self,
+                                     self._original_preview)
         self._thread.finished.connect(self._complete)
         self._thread.start()
         self.busyChanged.emit()
@@ -235,48 +446,37 @@ class CompareController(QObject):
             elif thread.outcome is None:
                 self._status = thread.error or "比对未完成，请重试。"
             else:
+                self._preview_directory = thread.preview_directory
+                thread.preview_directory = None
                 self._show_comparison(*thread.outcome)
         finally:
+            if thread.preview_directory is not None:
+                thread.preview_directory.cleanup()
             self._thread = None
             thread.deleteLater()
             self.busyChanged.emit()
             self.changed.emit()
 
-    def _show_comparison(self, left, right, comparison) -> None:
+    def _show_comparison(self, left, right, comparison, previews=None) -> None:
         self._changes = comparison.changes
+        self._snapshots = left, right
+        self._review = ReviewSession(left, right, comparison)
+        self.reviewChanged.emit()
+        self._previews = previews or {}
         warnings = [f"「{snapshot.path.name}」{warning}"
                     for snapshot in (left, right) for warning in snapshot.warnings]
         if comparison.used_coarse_matching:
             warnings.append("部分差异范围较大，按整段显示。")
+        warnings.extend(f"{'原文' if side == 'left' else '新版'}：{preview['warning']}"
+                        for side, preview in self._previews.items() if preview.get('warning'))
         self._warning = "\n".join(warnings)
         for side, snapshot, color in (("left", left, "#fbded9"), ("right", right, "#d4eddc")):
             editor = self._editors[side]
             editor.setProperty("text", snapshot.text)
             offsets = self._offsets[side] = utf16_offsets(snapshot.text)
-            spans = []
-            for change in self._changes:
-                edits = getattr(change, side + "_edits")
-                if change.kind == "move_replace":
-                    # Non-overlapping highlight ranges: blue marks relocation,
-                    # while the changed characters retain red/green emphasis.
-                    whole = getattr(change, side)
-                    cursor = whole.start
-                    for edit in sorted(edits, key=lambda part: part.start):
-                        if cursor < edit.start:
-                            spans.append((offsets[cursor], offsets[edit.start], MOVE_COLOR))
-                        spans.append((offsets[edit.start], offsets[edit.end], color))
-                        cursor = edit.end
-                    if cursor < whole.end:
-                        spans.append((offsets[cursor], offsets[whole.end], MOVE_COLOR))
-                else:
-                    spans.extend((offsets[span.start], offsets[span.end],
-                                  MOVE_COLOR if change.kind == "move" else color)
-                                 for span in edits)
-            spans.sort(key=lambda item: (item[0], item[1]))
-            if spans:
-                document = self._wrappers[side].textDocument()
-                self._highlighters.append(EvidenceHighlighter(document, spans))
+        self._highlight_comparison()
         self.changeEntriesChanged.emit()
+        self.changed.emit()
         if self._changes:
             self.analysis.set_comparison(left, right, comparison)
             counts = Counter(change.kind for change in self._changes)
@@ -289,6 +489,9 @@ class CompareController(QObject):
     def _jump(self, side: str, start: int, end: int) -> None:
         QMetaObject.invokeMethod(self._root, "jump", Qt.DirectConnection,
                                  Q_ARG(str, side), Q_ARG(int, start), Q_ARG(int, end))
+        if self._previews:
+            QMetaObject.invokeMethod(self._root, "jumpPreview", Qt.DirectConnection,
+                                     Q_ARG(str, side), Q_ARG(int, self._index))
 
     @Slot(int)
     def navigate(self, direction: int) -> None:
@@ -304,6 +507,8 @@ class CompareController(QObject):
         change = self._changes[index]
         for side, boundary, edits in (("left", change.left, change.left_edits),
                                       ("right", change.right, change.right_edits)):
+            if self._word_mode:
+                edits = getattr(change, side + "_word_edits")
             offsets = self._offsets[side]
             target = edits[0] if edits else Span(boundary.start, boundary.start)
             self._jump(side, offsets[target.start], offsets[target.end])
@@ -321,8 +526,8 @@ class CompareController(QObject):
         self._jump(side, offsets[start], offsets[end])
 
 
-def create_window(*, cache_root=None, analysis_network=None) -> tuple[QQmlApplicationEngine, QQuickWindow, CompareController]:
-    controller = CompareController(cache_root, analysis_network)
+def create_window(*, cache_root=None, analysis_network=None, original_preview=True) -> tuple[QQmlApplicationEngine, QQuickWindow, CompareController]:
+    controller = CompareController(cache_root, analysis_network, original_preview)
     engine = QQmlApplicationEngine()
     engine.setInitialProperties({"controller": controller, "workspace": controller.workspace,
                                  "analysis": controller.analysis})
@@ -331,6 +536,9 @@ def create_window(*, cache_root=None, analysis_network=None) -> tuple[QQmlApplic
         raise RuntimeError("DocLens could not load its QML window")
     window = engine.rootObjects()[0]
     controller.attach(window)
+    app = QGuiApplication.instance()
+    if app is not None:
+        app.aboutToQuit.connect(controller.clear_previews)
     return engine, window, controller
 
 

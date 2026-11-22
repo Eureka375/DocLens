@@ -1,0 +1,34 @@
+{
+  "version": "0.4.1",
+  "zip": "releases/v0.4.1/DocLens-V0.4.1-Windows.zip",
+  "bytes": 81317166,
+  "sha256": "f8c8daf11272a2cde6d6efcef121a2d8f147b350e1394729d9dc94d19032a2a8",
+  "zip_crc_verified": true,
+  "structured_module_bundled": true,
+  "environment": "Windows-only PATH; Python env vars removed",
+  "checks": [
+    {
+      "case": "structured TXT",
+      "visible_window": true,
+      "exit_code": 0
+    },
+    {
+      "case": "PDF",
+      "visible_window": true,
+      "exit_code": 0
+    },
+    {
+      "case": "academic TXT",
+      "visible_window": true,
+      "exit_code": 0
+    },
+    {
+      "case": "Word DOCX",
+      "visible_window": true,
+      "exit_code": 0
+    }
+  ],
+  "ai_modules_bundled": true,
+  "settings_controls_bundled": true,
+  "user_settings_excluded": true
+}

@@ -16,8 +16,10 @@ try {
     $buildArguments = @(
         "-I", "-m", "PyInstaller", "--clean", "--onedir", "--windowed",
         "--name", "DocLens", "--distpath", $OutputDirectory,
+        "--copy-metadata", "pypdfium2", "--copy-metadata", "pillow",
         "--workpath", "build/pyinstaller", "--specpath", "build",
-        "--add-data", "$(Join-Path $project 'src/doclens/ui');doclens/ui"
+        "--add-data", "$(Join-Path $project 'src/doclens/ui');doclens/ui",
+        "--add-data", "$(Join-Path $project 'src/doclens/word_preview.ps1');doclens"
     )
     # Conda keeps these Python extension dependencies outside the base directory.
     $condaDlls = @(
