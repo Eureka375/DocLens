@@ -1,0 +1,37 @@
+name: Regression and diff metrics
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      QT_QUICK_BACKEND: software
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: astral-sh/setup-uv@v6
+      - name: Install Qt headless runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libegl1 libopengl0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-xinerama0 libxcb-keysyms1 libxcb-image0 libxcb-icccm4 libxcb-render-util0
+      - name: Install locked dependencies
+        run: uv sync --locked --python 3.13
+      - name: Test core and GUI with virtual display
+        run: xvfb-run -a uv run --locked python -m pytest -q
+      - name: Generate diff metrics
+        run: uv run --locked python scripts/benchmark_diff.py --repeats 3 --output build/diff-metrics.json
+      - name: Upload metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diff-metrics
+          path: build/diff-metrics.json
+          if-no-files-found: ignore
