@@ -1,4 +1,5 @@
 from hashlib import sha256
+import sys
 
 import pytest
 
@@ -100,6 +101,7 @@ def test_insert_has_navigation_anchor_on_unchanged_side(tmp_path):
     assert any(mark['group'] == 1 for mark in p['pages'][1]['anchors'])
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows WinDLL is required for cancellation test")
 def test_word_can_cancel_before_pid_is_published(tmp_path, monkeypatch):
     import doclens.preview as preview
     class Function:
