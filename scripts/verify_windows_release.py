@@ -19,6 +19,7 @@ args = parser.parse_args()
 if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", args.version):
     parser.error("version must contain three numeric components")
 version = args.version
+smart_analysis = tuple(map(int, version.split("."))) >= (0, 4, 1)
 root = Path(__file__).resolve().parents[1]
 dist = root / "dist" / f"v{version}"
 bundle = dist / "DocLens"
@@ -29,6 +30,8 @@ if not (bundle / "DocLens.exe").is_file():
 release.mkdir(parents=True, exist_ok=True)
 for name in ("PDF比对", "结构化比对"):
     shutil.copytree(root / "examples" / name, bundle / "示例" / name, dirs_exist_ok=True)
+if smart_analysis:
+    shutil.copytree(root / "examples" / "学术比较", bundle / "示例" / "学术比较", dirs_exist_ok=True)
 if args.with_word:
     shutil.copytree(root / "examples" / "原貌比对", bundle / "示例" / "原貌比对", dirs_exist_ok=True)
 (bundle / "使用说明.md").write_text(
@@ -44,6 +47,18 @@ if args.with_word:
 from PyInstaller.archive.readers import CArchiveReader
 embedded = CArchiveReader(str(bundle / "DocLens.exe")).open_embedded_archive("PYZ.pyz")
 assert "doclens.structure" in embedded.toc, "Structured parser missing from frozen application"
+if smart_analysis:
+    for module in ("doclens.analysis", "doclens.analysis_ui", "doclens.providers", "doclens.settings"):
+        assert module in embedded.toc, f"AI module missing: {module}"
+    qml = (bundle / "_internal" / "doclens" / "ui" / "AnalysisDialog.qml").read_text(encoding="utf-8")
+    for control in ("aiSaveSettings", "aiClearSettings", "aiProvider"):
+        assert control in qml, f"AI control missing: {control}"
+    assert not list(bundle.rglob("ai-settings.bin")), "User AI settings must not be bundled"
+    with (bundle / "使用说明.md").open("a", encoding="utf-8") as guide:
+        guide.write("\n[学术比较案例](示例/学术比较/测试指南.md)预期3组修改。\n"
+                    "AI分析需填写服务地址、模型和API Key；保存设置或确认发送后会加密记住，重启可复用。\n"
+                    "可在AI窗口替换密钥或清除保存的设置。切换服务地址不会带入旧密钥。\n"
+                    "密钥由Windows当前用户保护，不随便携目录迁移。实际模型需自行配置并核对结果。\n")
 if args.with_word:
     assert "doclens.preview" in embedded.toc, "Page preview module missing"
     assert (bundle / '_internal' / 'doclens' / 'word_preview.ps1').is_file()
@@ -61,6 +76,8 @@ with zipfile.ZipFile(candidate) as output:
     assert output.testzip() is None
     assert {"DocLens/DocLens.exe", "DocLens/示例/结构化比对/原版.txt",
             "DocLens/示例/PDF比对/新版.pdf"} <= set(output.namelist())
+    if smart_analysis:
+        assert "DocLens/示例/学术比较/测试指南.md" in output.namelist()
     output.extractall(verify_root)
 verified_bundle = verify_root / "DocLens"
 
@@ -83,6 +100,9 @@ cases = [
     ("structured TXT", [str(verified_bundle / "示例" / "结构化比对" / name) for name in ("原版.txt", "新版.txt")]),
     ("PDF", [str(verified_bundle / "示例" / "PDF比对" / name) for name in ("原版.pdf", "新版.pdf")]),
 ]
+if smart_analysis:
+    cases.append(("academic TXT", [str(verified_bundle / "示例" / "学术比较" / name)
+                                    for name in ("原稿.txt", "修订稿.txt")]))
 if args.with_word:
     cases.append(('Word DOCX', [str(verified_bundle / '示例' / '原貌比对' / name) for name in ('原版.docx', '新版.docx')]))
 for label, documents in cases:
@@ -127,5 +147,7 @@ report = {"version": version, "zip": archive.relative_to(root).as_posix(),
           "bytes": archive.stat().st_size, "sha256": digest, "zip_crc_verified": True,
           "structured_module_bundled": True, "environment": "Windows-only PATH; Python env vars removed",
           "checks": checks}
+if smart_analysis:
+    report.update(ai_modules_bundled=True, settings_controls_bundled=True, user_settings_excluded=True)
 (report_dir / "package-results.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 print(json.dumps(report, indent=2))
