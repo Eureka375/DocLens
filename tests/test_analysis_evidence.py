@@ -54,3 +54,51 @@ def test_unknown_evidence_id_is_rejected(tmp_path):
     draft = _make_draft(tmp_path)
     with pytest.raises(AnalysisError, match="证据引用"):
         parse_analysis(_response(["D99-OLD"]), draft)
+
+
+def _custom_response(finding):
+    return json.dumps({"choices": [{"finish_reason": "stop", "message": {
+        "content": json.dumps({"findings": [finding]}, ensure_ascii=False)
+    }}]}, ensure_ascii=False).encode("utf-8")
+
+
+def test_literal_quotes_are_checked_against_the_exact_snapshot(tmp_path):
+    draft = _make_draft(tmp_path)
+    old, new = (e.id for e in draft.evidence[:2])
+    entry = {
+        "category": "time", "summary": "交付期限缩短",
+        "impact": "可能影响项目安排", "evidence_ids": [old, new],
+        "quotes": [{"id": old, "text": "30天"}, {"id": new, "text": "15天"}],
+    }
+    finding, = parse_analysis(_custom_response(entry), draft)
+    assert finding.quotes == ((old, "30天"), (new, "15天"))
+    assert "原文摘录已核对" in finding.verification
+
+    invalid = {**entry, "quotes": [{"id": old, "text": "90天"}, {"id": new, "text": "15天"}]}
+    with pytest.raises(AnalysisError, match="证据引用"):
+        parse_analysis(_custom_response(invalid), draft)
+    invalid = {**entry, "quotes": [{"id": old, "text": "30天"}]}
+    with pytest.raises(AnalysisError):
+        parse_analysis(_custom_response(invalid), draft)
+
+
+def test_numeric_direction_contradiction_is_rejected(tmp_path):
+    draft = _make_draft(tmp_path)
+    old, new = (e.id for e in draft.evidence[:2])
+    entry = {
+        "category": "time", "summary": "交付期限延长",
+        "impact": "可能延后项目", "evidence_ids": [old, new],
+        "quotes": [{"id": old, "text": "30天"}, {"id": new, "text": "15天"}],
+    }
+    with pytest.raises(AnalysisError, match="证据引用"):
+        parse_analysis(_custom_response(entry), draft)
+    entry["summary"] = "交付期限缩短"
+    assert parse_analysis(_custom_response(entry), draft)[0].quotes
+
+
+def test_backward_compatible_model_without_quotes_is_flagged_unverified(tmp_path):
+    draft = _make_draft(tmp_path)
+    old, new = (e.id for e in draft.evidence[:2])
+    finding, = parse_analysis(_response([old, new]), draft)
+    assert "需人工核对" in finding.verification
+    assert not finding.quotes
