@@ -689,3 +689,46 @@ def test_corrupt_settings_do_not_prevent_window_start(app):
         assert controller.analysis.clearSavedSettings()
     finally:
         window.close()
+
+
+@pytest.mark.parametrize("finish", ["timeout", "cancel"])
+def test_ai_allows_two_minutes_and_releases_pending_request(app, finish):
+    class PendingReply(FixtureReply):
+        def deliver(self):
+            pass  # No server result: exercise the real controller timer/cancel.
+    class PendingNetwork(FixtureNetwork):
+        def post(self, request, body):
+            self.calls.append((request, body))
+            self.pending = PendingReply(200, b"", self)
+            return self.pending
+    service = PendingNetwork()
+    engine, window, controller = create_window(original_preview=False, analysis_network=service)
+    ai = controller.analysis
+    try:
+        sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
+        for side, name in (("left", "原版.txt"), ("right", "新版.txt")):
+            controller.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        assert ai.prepare(1, 1, "https://api.deepseek.com/chat/completions", "deepseek-flash", "deepseek")
+        ai.approveAndSend("fictional-key")
+        assert ai.busy and ai._timer.isActive()
+        assert ai._timer.interval() == 120_000
+        assert "120 秒" in ai.status
+        QTest.qWait(60)
+        assert ai.busy and not service.pending.cancelled
+        if finish == "timeout":
+            ai._timer.start(1)  # Test expiry without waiting two actual minutes.
+        else:
+            ai.cancel()
+        wait_for(lambda: not ai.busy)
+        assert service.pending.cancelled and not ai._timer.isActive()
+        assert ("超过 120 秒" if finish == "timeout" else "已取消") in ai.status
+        assert not ai.report and "本地差异" in ai.status
+        assert controller.changeCount == 5
+        controller.jumpToChange(4)
+        assert control(window, "rightText").property("selectedText") == "90"
+        assert len(service.calls) == 1  # Timeout/cancel never silently resends.
+    finally:
+        ai.cancel()
+        window.close()

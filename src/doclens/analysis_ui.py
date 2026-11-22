@@ -7,7 +7,7 @@ from .analysis import CATEGORIES, MAX_REPLY_BYTES, AnalysisError, prepare_analys
 from .settings import AISettings, AISettingsStore, SettingsError, valid_api_key
 
 MAX_CACHE_ENTRIES = 16
-REQUEST_TIMEOUT_MS = 30_000
+REQUEST_TIMEOUT_MS = 120_000
 
 
 class AnalysisController(QObject):
@@ -23,7 +23,8 @@ class AnalysisController(QObject):
         self._network = network if network is not None else QNetworkAccessManager(self)
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
-        self._timer.timeout.connect(lambda: self._abort("AI 分析请求超时。"))
+        self._timer.timeout.connect(lambda: self._abort(
+            f"AI 分析等待超过 {REQUEST_TIMEOUT_MS // 1000} 秒，已停止等待，可稍后手动重试。"))
         self._comparison = None
         self._draft = None
         self._submitted = None
@@ -217,7 +218,7 @@ class AnalysisController(QObject):
         self._reply.readyRead.connect(self._read_reply)
         self._reply.finished.connect(self._finished)
         self._timer.start(REQUEST_TIMEOUT_MS)
-        self._status = "服务正在分析已授权的差异…"
+        self._status = f"服务正在分析已授权的差异，最长等待 {REQUEST_TIMEOUT_MS // 1000} 秒，可取消等待…"
         self.busyChanged.emit()
         self.changed.emit()
 
