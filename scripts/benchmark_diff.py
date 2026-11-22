@@ -35,14 +35,14 @@ def snapshot(lines: list[str], name: str) -> Snapshot:
                     text, tuple(blocks), ())
 
 
-def predicted(left: Snapshot, right: Snapshot):
+def predicted(left: Snapshot, right: Snapshot, compare_fn=compare):
     return [
         (c.kind, left.text[c.left.start:c.left.end], right.text[c.right.start:c.right.end])
-        for c in compare(left, right).changes
+        for c in compare_fn(left, right).changes
     ]
 
 
-def accuracy():
+def accuracy(compare_fn=compare):
     cases = json.loads(CORPUS.read_text(encoding="utf-8"))
     tp = fp = fn = 0
     errors = []
@@ -51,7 +51,7 @@ def accuracy():
             a, b = Path(directory) / "old.txt", Path(directory) / "new.txt"
             a.write_text(case["old"], encoding="utf-8")
             b.write_text(case["new"], encoding="utf-8")
-            actual = Counter(predicted(read_document(a), read_document(b)))
+            actual = Counter(predicted(read_document(a), read_document(b), compare_fn))
             expected = Counter((c["kind"], c["left"], c["right"]) for c in case["expected"])
             good = sum((actual & expected).values())
             wrong = sum((actual - expected).values())
@@ -69,7 +69,7 @@ def accuracy():
             "recall": round(recall, 4), "f1": round(f1, 4), "failed_cases": errors}
 
 
-def performance(lines_count: int, repeats: int):
+def performance(lines_count: int, repeats: int, compare_fn=compare):
     original = [f"第{i:05d}条通用归档条款，使用统一编号和固定文本" for i in range(lines_count)]
     edited = original.copy()
     edited[0] = "第00000条通用归档条款，完成期限改为15天"
@@ -77,16 +77,16 @@ def performance(lines_count: int, repeats: int):
     edited[-1] = "末尾条款新增责任说明"
     left, right = snapshot(original, "benchmark-old.txt"), snapshot(edited, "benchmark-new.txt")
     # Warm-up; explicitly exclude extraction, UI, network and file I/O.
-    reference = compare(left, right)
+    reference = compare_fn(left, right)
     samples = []
     for _ in range(repeats):
         start = perf_counter()
-        result = compare(left, right)
+        result = compare_fn(left, right)
         samples.append((perf_counter() - start) * 1000)
         assert len(result.changes) == len(reference.changes)
     tracemalloc.start()
     try:
-        compare(left, right)
+        compare_fn(left, right)
         _, peak = tracemalloc.get_traced_memory()
     finally:
         tracemalloc.stop()
