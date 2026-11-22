@@ -75,12 +75,13 @@ class AnalysisController(QObject):
         self.reportChanged.emit()
 
     @Slot(int, int, str, str, result=bool)
-    def prepare(self, first: int, last: int, endpoint: str, model: str) -> bool:
+    @Slot(int, int, str, str, str, result=bool)
+    def prepare(self, first: int, last: int, endpoint: str, model: str, provider: str = "auto") -> bool:
         if self.busy or self._comparison is None:
             return False
         self._draft = None
         try:
-            self._draft = prepare_analysis(*self._comparison, first, last, endpoint, model)
+            self._draft = prepare_analysis(*self._comparison, first, last, endpoint, model, provider)
         except AnalysisError as exc:
             self._status = str(exc)
             self.changed.emit()
@@ -192,6 +193,8 @@ class AnalysisController(QObject):
         except AnalysisError as exc:
             self._status = str(exc)
         finally:
+            if not self._report:
+                self._status += " 本地差异仍可使用，可关闭此窗口继续核对原文。"
             self._buffer.clear()
             reply.deleteLater()
             self.busyChanged.emit()

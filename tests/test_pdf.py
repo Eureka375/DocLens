@@ -54,6 +54,45 @@ def write_pdf(path, pages, *, rotate_page=None, password=None, repeated_forms=0)
     writer.write(str(path))
 
 
+@pytest.mark.parametrize("old_format", ["txt", "docx", "pdf"])
+@pytest.mark.parametrize("new_format", ["txt", "docx", "pdf"])
+def test_academic_pipeline_across_all_supported_format_pairs(tmp_path, old_format, new_format):
+    from docx import Document
+    from doclens.analysis import parse_analysis
+    import json
+    snapshots = []
+    for name, suffix, count in (("old", old_format, 30), ("new", new_format, 60)):
+        path = tmp_path / f"{name}.{suffix}"
+        lines = ["2 Methods", "2.1 Dataset", f"We use {count} samples."]
+        if suffix == "pdf":
+            write_pdf(path, [lines])
+        elif suffix == "docx":
+            document = Document()
+            document.add_heading(lines[0], 1)
+            document.add_heading(lines[1], 2)
+            document.add_paragraph(lines[2])
+            document.save(path)
+        else:
+            path.write_text("\n".join(lines), encoding="utf-8")
+        original = path.read_bytes()
+        snapshots.append(read_document(path))
+        assert path.read_bytes() == original
+    left, right = snapshots
+    comparison = compare(left, right)
+    change, = comparison.changes
+    assert left.text[change.left_word_edits[0].start:change.left_word_edits[0].end] == "30"
+    assert right.text[change.right_word_edits[0].start:change.right_word_edits[0].end] == "60"
+    draft = prepare_analysis(left, right, comparison, 1, 1,
+                             "https://models.example/chat/completions", "model", "json")
+    assert all(e.section_path == ("2 Methods", "2.1 Dataset") for e in draft.evidence)
+    finding = {"category": "data", "summary": "样本数由30变为60", "impact": "需核对实验设置",
+               "evidence_ids": [e.id for e in draft.evidence]}
+    response = json.dumps({"choices": [{"message": {"content": json.dumps({"findings": [finding]})}}]}).encode()
+    report, = parse_analysis(response, draft)
+    for snapshot, evidence in zip(snapshots, report.evidence):
+        assert snapshot.text[evidence.span.start:evidence.span.end] == evidence.text
+
+
 def test_pdf_pages_and_text_offsets_survive_rotation_and_missing_text(tmp_path):
     path = tmp_path / "报告.PDF"
     write_pdf(path, [("Equipment request", "Owner: Lab"), None, ("Deadline: 14 days",)],

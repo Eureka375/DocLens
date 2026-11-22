@@ -57,6 +57,20 @@ Dialog {
                 echoMode: TextInput.Password
                 maximumLength: 4096
             }
+            Label { text: "请求格式" }
+            ComboBox {
+                id: provider
+                objectName: "aiProvider"
+                Layout.fillWidth: true
+                textRole: "label"
+                valueRole: "profile"
+                model: [
+                    {label: "自动识别（兼容现有设置）", profile: "auto"},
+                    {label: "通用 Chat Completions", profile: "compatible"},
+                    {label: "Chat Completions + JSON 模式", profile: "json"},
+                    {label: "DeepSeek 请求格式", profile: "deepseek"}
+                ]
+            }
         }
 
         RowLayout {
@@ -99,7 +113,7 @@ Dialog {
                 highlighted: true
                 enabled: analysis.changeCount > 0 && !analysis.backend.busy
                 onClicked: {
-                    if (analysis.backend.prepare(first.value, last.value, endpoint.text, modelName.text))
+                    if (analysis.backend.prepare(first.value, last.value, endpoint.text, modelName.text, provider.currentValue))
                         confirmation.open();
                 }
             }

@@ -480,7 +480,8 @@ def test_ai_preview_approval_cache_and_clickable_local_evidence(app):
         window.close()
 
 
-@pytest.mark.parametrize("code, expected_status", [(402, "余额"), (429, "限流")])
+@pytest.mark.parametrize("code, expected_status", [(401, "身份验证"), (402, "余额"), (429, "限流"),
+                                                   (302, "重定向"), (500, "HTTP 500")])
 def test_model_service_error_keeps_local_comparison_available(app, code, expected_status):
     sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
     service = FixtureNetwork()
@@ -496,6 +497,44 @@ def test_model_service_error_keeps_local_comparison_available(app, code, expecte
         ai.approveAndSend("fixture-key")
         wait_for(lambda: not ai.busy)
         assert expected_status in ai.status and not ai.report
+        assert controller.changeCount == 5
+        controller.jumpToChange(4)
+        assert control(window, "rightText").property("selectedText") == "90"
+    finally:
+        ai.cancel()
+        window.close()
+
+
+def test_ai_provider_selection_reaches_request_and_invalid_citations_fall_back(app):
+    sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
+    class OneSidedNetwork(FixtureNetwork):
+        def post(self, request, body):
+            self.calls.append((request, body))
+            content = {"findings": [{"category": "method", "summary": "变更说明", "impact": "",
+                                     "evidence_ids": ["D1-OLD"]}]}
+            response = {"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(content)}}]}
+            return FixtureReply(200, json.dumps(response).encode(), self)
+    service = OneSidedNetwork()
+    engine, window, controller = create_window(original_preview=False, analysis_network=service)
+    ai = controller.analysis
+    try:
+        for side, name in (("left", "原版.txt"), ("right", "新版.txt")):
+            controller.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        click(window, "openAnalysis")
+        wait_for(lambda: control(window, "analysisDialog").property("opened"))
+        control(window, "aiEndpoint").setProperty("text", "https://models.example/chat/completions")
+        control(window, "aiModel").setProperty("text", "fixture-model")
+        control(window, "aiProvider").setProperty("currentIndex", 2)
+        control(window, "aiKey").setProperty("text", "fixture-key")
+        click(window, "aiPrepare")
+        wait_for(lambda: control(window, "aiConfirmation").property("opened"))
+        assert "json" in ai.scope
+        click(window, "aiSend")
+        wait_for(lambda: not ai.busy)
+        assert json.loads(service.calls[0][1])["response_format"] == {"type": "json_object"}
+        assert not ai.report and "本地差异" in ai.status
         assert controller.changeCount == 5
         controller.jumpToChange(4)
         assert control(window, "rightText").property("selectedText") == "90"
