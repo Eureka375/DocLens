@@ -158,8 +158,12 @@ def compare(left: Snapshot, right: Snapshot, check_cancelled: Callable[[], None]
     operations = expose_moves(operations, left_blocks, right_blocks, check_cancelled)
     changes = []
     operations = tuple(_with_moves(operations, left_blocks, right_blocks, check_cancelled))
-    operations = recover_edited_moves(operations, left_blocks, right_blocks,
-                                      _ordered_anchors(left_blocks, right_blocks), check_cancelled)
+    # Ordinary aligned 1:1 replacements cannot cross a stable anchor.
+    # Skip the global anchor walk on this common fast path.
+    if any(kind in ("insert", "delete", "move") or i != k or j != l
+           for kind, i, j, k, l in operations):
+        operations = recover_edited_moves(operations, left_blocks, right_blocks,
+                                          _ordered_anchors(left_blocks, right_blocks), check_cancelled)
     for kind, i, j, k, l in operations:
         check_cancelled()
         a, left_location = _block_span(left, i, j)
