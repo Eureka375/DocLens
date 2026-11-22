@@ -20,7 +20,7 @@ kind=move 表示段落文字完全一致但位置变化。仅凭证据不足时�
 只输出 JSON 对象，形如 {"findings":[{"category":"time","summary":"期限变化",
 "impact":"可能影响","evidence_ids":["D1-OLD","D1-NEW"]}]}。
 类别只能是 time、amount、permission、responsibility、requirement、editorial、other。
-每项必须引用提供的证据 ID，最多 12 项；关联比较时引用两侧证据（如提供了两侧）。
+每项必须引用提供的证据 ID，最多 12 项；引用某一组差异时，必须引用该组提供的全部原文与新版证据 ID。
 """
 
 
@@ -151,7 +151,16 @@ def parse_analysis(response: bytes, draft: AnalysisDraft) -> tuple[Finding, ...]
                     or not 1 <= len(ids) <= min(8, len(catalog)) or any(not isinstance(i, str) for i in ids)
                     or len(ids) != len(set(ids))):
                 raise ValueError
-            result.append(Finding(category, summary.strip(), impact.strip(), tuple(catalog[i] for i in ids)))
+            references = tuple(catalog[i] for i in ids)
+            # A comparative claim must reference both original and revised
+            # evidence whenever both were supplied for the cited change.
+            # Keep cross-change findings possible, but never allow one-sided
+            # citations to imply a comparison with an uncited version.
+            for change_index in {e.change_index for e in references}:
+                required = {e.id for e in draft.evidence if e.change_index == change_index}
+                if not required.issubset(ids):
+                    raise ValueError
+            result.append(Finding(category, summary.strip(), impact.strip(), references))
         return tuple(result)
     except (ValueError, KeyError, TypeError, AttributeError, IndexError, RecursionError) as exc:
         raise AnalysisError("服务返回的分析缺少有效内容或证据引用，请重试或换用兼容模型。") from exc
