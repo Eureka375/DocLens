@@ -1,0 +1,160 @@
+{
+  "date": "2026-11-22",
+  "method": "read-only GitHub codeload main source archives; source SHA-256, no immutable commit captured",
+  "sources": [
+    {
+      "repository": "cfuglestad/doc-drift-analyzer",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "LICENSE",
+      "sha256": "1786443a6fb7027bff8294a1d575329b4bcefd4e55efc83e92e3a874e61635d1",
+      "url": "https://github.com/cfuglestad/doc-drift-analyzer/blob/main/LICENSE"
+    },
+    {
+      "repository": "cfuglestad/doc-drift-analyzer",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "src/alignment.py",
+      "sha256": "8f0c02ecc68dfa1d30e194bebbef9d8a2592cd19a81485b131cbd8643be67e99",
+      "url": "https://github.com/cfuglestad/doc-drift-analyzer/blob/main/src/alignment.py"
+    },
+    {
+      "repository": "cfuglestad/doc-drift-analyzer",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "src/similarity.py",
+      "sha256": "528460bbefb7872c5063f597e8d3374cd896a338002d3f490324d59ff1e901a7",
+      "url": "https://github.com/cfuglestad/doc-drift-analyzer/blob/main/src/similarity.py"
+    },
+    {
+      "repository": "cfuglestad/doc-drift-analyzer",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "src/sectioning.py",
+      "sha256": "e134a43b9460c260f4065a17e20b507f0ace95722d44e33fefeb79aa85c3b73e",
+      "url": "https://github.com/cfuglestad/doc-drift-analyzer/blob/main/src/sectioning.py"
+    },
+    {
+      "repository": "NomaDamas/dupey",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "LICENSE",
+      "sha256": "a45464d8af35ccd41cdcc3fa61f090da4e14b1426a21c2ab7477f2f86b5dcc90",
+      "url": "https://github.com/NomaDamas/dupey/blob/main/LICENSE"
+    },
+    {
+      "repository": "NomaDamas/dupey",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "crates/dupey-core/src/exact.rs",
+      "sha256": "d99dd97662eb5997b3b76a44c6010c04f163daec168388acd9082817775196b7",
+      "url": "https://github.com/NomaDamas/dupey/blob/main/crates/dupey-core/src/exact.rs"
+    },
+    {
+      "repository": "NomaDamas/dupey",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "crates/dupey-core/src/near.rs",
+      "sha256": "0e452689552bdfbccc8474309ecb32d73a44d7836379e75bf16be8f9db8bc2fd",
+      "url": "https://github.com/NomaDamas/dupey/blob/main/crates/dupey-core/src/near.rs"
+    },
+    {
+      "repository": "NomaDamas/dupey",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "crates/dupey-core/src/rank.rs",
+      "sha256": "024742a15eab7b6bd99fc228e3539a8334c3c784e7da503ef321a4210adc4ad2",
+      "url": "https://github.com/NomaDamas/dupey/blob/main/crates/dupey-core/src/rank.rs"
+    },
+    {
+      "repository": "docling-project/docling",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "LICENSE",
+      "sha256": "edb765d1e3e60d0c7a7d5fba5f2bb2c3c29f7465cecb5c22cf1185c884954e4c",
+      "url": "https://github.com/docling-project/docling/blob/main/LICENSE"
+    },
+    {
+      "repository": "docling-project/docling",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "docling/pipeline/standard_pdf_pipeline.py",
+      "sha256": "a374a5fb14f5d0754fbaa4de9db4dd3f03f026b92c10788ca08c4b31ee250578",
+      "url": "https://github.com/docling-project/docling/blob/main/docling/pipeline/standard_pdf_pipeline.py"
+    },
+    {
+      "repository": "mxthsu/docdiff-ai",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "LICENSE",
+      "sha256": "fbe49f9bf294e8db34681ee1bb3f772c6386419d2aec20fbe1600cec4ecfd4fc",
+      "url": "https://github.com/mxthsu/docdiff-ai/blob/main/LICENSE"
+    },
+    {
+      "repository": "mxthsu/docdiff-ai",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "src/docdiff_ai/version_diff.py",
+      "sha256": "ab8779adf986533ae8c6951a1ea5e76034fb359c97d2cd998661ced8ac270261",
+      "url": "https://github.com/mxthsu/docdiff-ai/blob/main/src/docdiff_ai/version_diff.py"
+    },
+    {
+      "repository": "Detective-XH/DocGraph",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "LICENSE",
+      "sha256": "1e047192130afdac65fd68f617baa98e100b95b6cf4ab616a7e2d358296a342e",
+      "url": "https://github.com/Detective-XH/DocGraph/blob/main/LICENSE"
+    },
+    {
+      "repository": "Detective-XH/DocGraph",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "internal/store/schema.go",
+      "sha256": "83a37a1d1b4f3f7b4111ec47622d0f842c6fc5cc6b078f50517b69aee7ab1a0d",
+      "url": "https://github.com/Detective-XH/DocGraph/blob/main/internal/store/schema.go"
+    },
+    {
+      "repository": "Detective-XH/DocGraph",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "internal/store/search_collectors.go",
+      "sha256": "a5a4b2691d61f1160b46b9e0f4ba2315c02528f0d2a2a260c74fc9f81fc335bb",
+      "url": "https://github.com/Detective-XH/DocGraph/blob/main/internal/store/search_collectors.go"
+    },
+    {
+      "repository": "Detective-XH/DocGraph",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "internal/store/search.go",
+      "sha256": "6ff03797b974d2c98ee06873074b572749502e813ae443c128a91880e31fb9e9",
+      "url": "https://github.com/Detective-XH/DocGraph/blob/main/internal/store/search.go"
+    },
+    {
+      "repository": "Detective-XH/DocGraph",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "internal/similarity/pairwise.go",
+      "sha256": "1471566946f12eedfa7682592459ce1d22d85861b5e6ee91cf9179a1118ec9f8",
+      "url": "https://github.com/Detective-XH/DocGraph/blob/main/internal/similarity/pairwise.go"
+    },
+    {
+      "repository": "paperless-ngx/paperless-ngx",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "LICENSE",
+      "sha256": "d62f065830aa3739cc031156b9690805c7b2e811b4a178c8b4acd8725d561c94",
+      "url": "https://github.com/paperless-ngx/paperless-ngx/blob/main/LICENSE"
+    },
+    {
+      "repository": "paperless-ngx/paperless-ngx",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "src/documents/search/_backend.py",
+      "sha256": "798ff2cbcf8386a576e11b402a0b703b18bc2bb514dc69f0772a93d555ec5052",
+      "url": "https://github.com/paperless-ngx/paperless-ngx/blob/main/src/documents/search/_backend.py"
+    },
+    {
+      "repository": "paperless-ngx/paperless-ngx",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "src/documents/search/_query.py",
+      "sha256": "bc0e9eb27f556fce8a5b91acca720c9c3ed7cd4ee855bfafbe42dd13ee5d7bae",
+      "url": "https://github.com/paperless-ngx/paperless-ngx/blob/main/src/documents/search/_query.py"
+    },
+    {
+      "repository": "paperless-ngx/paperless-ngx",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "src/documents/utils.py",
+      "sha256": "ffa6dd4923cda3e778e75e631b7c6d713468669458019fe73483b333d4ac0428",
+      "url": "https://github.com/paperless-ngx/paperless-ngx/blob/main/src/documents/utils.py"
+    },
+    {
+      "repository": "paperless-ngx/paperless-ngx",
+      "ref": "main (floating, fetched 2026-11-22)",
+      "file": "src/documents/consumer.py",
+      "sha256": "e97ac9a038f338872f513147a1e73a91fbe0a1a85d5ddbc4e7df75ad6d79e64f",
+      "url": "https://github.com/paperless-ngx/paperless-ngx/blob/main/src/documents/consumer.py"
+    }
+  ]
+}

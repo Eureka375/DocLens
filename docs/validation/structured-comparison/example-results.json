@@ -1,0 +1,62 @@
+[
+  {
+    "example": "examples/结构化比对",
+    "changes": 3,
+    "kinds": [
+      "replace",
+      "replace",
+      "replace"
+    ],
+    "coarse": false,
+    "elapsed_ms": 5.54,
+    "evidence": [
+      {
+        "old": "交付期限为7天。",
+        "new": "交付期限为3天。"
+      },
+      {
+        "old": "合同金额为100元。",
+        "new": "合同金额为200元。"
+      },
+      {
+        "old": "材料留存期限为45天。",
+        "new": "材料留存期限为90天。"
+      }
+    ]
+  },
+  {
+    "example": "examples/跳转测试",
+    "changes": 5,
+    "kinds": [
+      "replace",
+      "replace",
+      "delete",
+      "insert",
+      "replace"
+    ],
+    "coarse": false,
+    "elapsed_ms": 7.108,
+    "evidence": [
+      {
+        "old": "系统应在 7 天内完成登记。",
+        "new": "系统应在 3 天内完成登记。"
+      },
+      {
+        "old": "每批次抽查 20% 的记录。",
+        "new": "每批次抽查 35% 的记录。"
+      },
+      {
+        "old": "纸质登记表每周五报送。",
+        "new": ""
+      },
+      {
+        "old": "",
+        "new": "归档状态变更时向负责人发送通知。"
+      },
+      {
+        "old": "操作日志保留 45 天。",
+        "new": "操作日志保留 90 天。"
+      }
+    ]
+  }
+]
