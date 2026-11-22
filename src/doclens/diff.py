@@ -4,6 +4,7 @@ from collections.abc import Callable, Iterator, Sequence
 from difflib import SequenceMatcher
 
 from .alignment import expose_moves, refine_replacements
+from .edited_moves import recover_edited_moves
 from .documents import no_cancel
 from .models import Change, Comparison, Snapshot, Span
 
@@ -156,11 +157,14 @@ def compare(left: Snapshot, right: Snapshot, check_cancelled: Callable[[], None]
     operations = refine_replacements(operations, left_blocks, right_blocks, check_cancelled)
     operations = expose_moves(operations, left_blocks, right_blocks, check_cancelled)
     changes = []
-    for kind, i, j, k, l in _with_moves(operations, left_blocks, right_blocks, check_cancelled):
+    operations = tuple(_with_moves(operations, left_blocks, right_blocks, check_cancelled))
+    operations = recover_edited_moves(operations, left_blocks, right_blocks,
+                                      _ordered_anchors(left_blocks, right_blocks), check_cancelled)
+    for kind, i, j, k, l in operations:
         check_cancelled()
         a, left_location = _block_span(left, i, j)
         b, right_location = _block_span(right, k, l)
-        if kind == "replace":
+        if kind in ("replace", "move_replace"):
             edits, approximate = _operations(left.text[a.start:a.end], right.text[b.start:b.end],
                                               CHAR_PAIR_LIMIT, check_cancelled)
             coarse |= approximate
