@@ -1,4 +1,4 @@
-# DocLens 0.4.1
+# DocLens 0.4.2
 
 Windows 桌面文档比对工具，支持双栏比对、文件夹关键词检索和关联原文的 AI 差异解释。比对和检索可离线运行。
 
@@ -6,7 +6,8 @@ Windows 桌面文档比对工具，支持双栏比对、文件夹关键词检索
 
 - 技术方案和早期验证资料保存在项目的本地归档中。
 - [PDF 与段落移动样例](examples/PDF比对/测试指南.md)、[跳转样例](examples/跳转测试/)和 [进阶案例指南](examples/进阶测试案例/测试指南.txt)位于 `examples/`。
-- [Windows 发布包](releases/README.md)按版本保存。当前便携版位于 `dist/v0.4.1/DocLens/`，可运行该目录中的 `DocLens.exe`。
+- [Windows 发布包](releases/README.md)按版本保存。当前便携版位于 `dist/v0.4.2/DocLens/`，可运行该目录中的 `DocLens.exe`。
+- V0.4.2 将AI等待上限从30秒放宽至120秒，保留随时取消和手动重试。[发布说明](releases/v0.4.2/README.md)
 - V0.4.1 包含学术比较、可配置 AI 请求格式及加密记住 API Key，详见[发布说明](releases/v0.4.1/README.md)。
 - V0.4.0 新增[原貌比较](docs/design/2026-11-22-original-layout.md)：PDF 直接显示原页面，DOCX 使用本机 Microsoft Word 将临时副本转换为只读页面；保留标题、字体、表格、图片、页眉与分页的显示。参见[示例](examples/原貌比对/测试指南.md)和[验证截图](docs/validation/original-layout/验证报告.md)。
 - 后续成果按 [项目存放约定](AGENTS.md)归档。
@@ -85,10 +86,10 @@ uv run --locked python -m pytest -q
 
 `src/doclens/documents.py` 解析只读快照，`diff.py` 生成差异和原文位置，`workspace.py` 建立本地索引，`analysis.py` 构造请求并校验证据。`tests/` 包含核心与窗口集成用例。
 
-在 Windows 上可用 PyInstaller 重新打包。验证脚本会添加示例、生成 ZIP，并从独立解压目录验证启动。保留整个 `dist/v0.4.1/DocLens` 目录再运行其中的 `DocLens.exe`。
+在 Windows 上可用 PyInstaller 重新打包。验证脚本会添加示例、生成 ZIP，并从独立解压目录验证启动。保留整个 `dist/v0.4.2/DocLens` 目录再运行其中的 `DocLens.exe`。
 
 ```powershell
 uv pip install --python .\.venv\Scripts\python.exe PyInstaller==6.22.3
-.\scripts\package.ps1 -OutputDirectory dist/v0.4.1
-.\.venv\Scripts\python.exe scripts/verify_windows_release.py 0.4.1 --with-word
+.\scripts\package.ps1 -OutputDirectory dist/v0.4.2
+.\.venv\Scripts\python.exe scripts/verify_windows_release.py 0.4.2 --with-word
 ```

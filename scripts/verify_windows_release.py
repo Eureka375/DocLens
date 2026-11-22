@@ -20,6 +20,7 @@ if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", args.version):
     parser.error("version must contain three numeric components")
 version = args.version
 smart_analysis = tuple(map(int, version.split("."))) >= (0, 4, 1)
+extended_timeout = tuple(map(int, version.split("."))) >= (0, 4, 2)
 root = Path(__file__).resolve().parents[1]
 dist = root / "dist" / f"v{version}"
 bundle = dist / "DocLens"
@@ -54,11 +55,16 @@ if smart_analysis:
     for control in ("aiSaveSettings", "aiClearSettings", "aiProvider"):
         assert control in qml, f"AI control missing: {control}"
     assert not list(bundle.rglob("ai-settings.bin")), "User AI settings must not be bundled"
+    if extended_timeout:
+        frozen_analysis = embedded.extract("doclens.analysis_ui")
+        assert 120_000 in frozen_analysis.co_consts, "Two-minute timeout missing from frozen application"
     with (bundle / "使用说明.md").open("a", encoding="utf-8") as guide:
         guide.write("\n[学术比较案例](示例/学术比较/测试指南.md)预期3组修改。\n"
                     "AI分析需填写服务地址、模型和API Key；保存设置或确认发送后会加密记住，重启可复用。\n"
                     "可在AI窗口替换密钥或清除保存的设置。切换服务地址不会带入旧密钥。\n"
                     "密钥由Windows当前用户保护，不随便携目录迁移。实际模型需自行配置并核对结果。\n")
+        if extended_timeout:
+            guide.write("AI分析最长等待120秒，可随时取消；超时后可手动重试。\n")
 if args.with_word:
     assert "doclens.preview" in embedded.toc, "Page preview module missing"
     assert (bundle / '_internal' / 'doclens' / 'word_preview.ps1').is_file()
@@ -149,5 +155,7 @@ report = {"version": version, "zip": archive.relative_to(root).as_posix(),
           "checks": checks}
 if smart_analysis:
     report.update(ai_modules_bundled=True, settings_controls_bundled=True, user_settings_excluded=True)
+if extended_timeout:
+    report["request_timeout_ms"] = 120_000
 (report_dir / "package-results.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 print(json.dumps(report, indent=2))
