@@ -8,9 +8,10 @@ ApplicationWindow {
     required property QtObject controller
     required property QtObject workspace
     required property QtObject analysis
-    width: 1120
-    height: 720
+    width: 1440
+    height: 840
     minimumWidth: 760
+    property bool showReview: true
     minimumHeight: 480
     visible: true
     title: "DocLens"
@@ -19,6 +20,9 @@ ApplicationWindow {
 
     function jump(side: string, start: int, end: int) {
         (side === "left" ? leftPane : rightPane).jump(start, end);
+    }
+    function jumpPreview(side: string, group: int) {
+        (side === "left" ? leftPane : rightPane).jumpPreview(group);
     }
 
     onClosing: function(event) {
@@ -49,11 +53,40 @@ ApplicationWindow {
         id: analysisDialog
         objectName: "analysisDialog"
         parent: Overlay.overlay
-        width: Math.min(window.width - 36, 910)
-        height: Math.min(window.height - 36, 675)
+        width: Math.min(window.width - 36, 1120)
+        height: Math.min(window.height - 36, 760)
         backend: window.analysis
         changeCount: window.controller.changeCount
         activeGroup: Math.max(1, window.controller.changeIndex + 1)
+        onHomeRequested: {
+            if (window.width < 1280) homeReviewDrawer.open();
+            else window.showReview = true;
+        }
+    }
+
+    Drawer {
+        id: homeReviewDrawer
+        objectName: "homeReviewDrawer"
+        parent: Overlay.overlay
+        edge: Qt.LeftEdge
+        width: Math.min(420, window.width - 32)
+        height: window.height
+        modal: false
+        dim: false
+        contentItem: ReviewPane {
+            backend: window.controller
+            listObjectName: "drawerReviewList"
+            onEvidenceOpened: homeReviewDrawer.close()
+        }
+    }
+
+    FileDialog {
+        id: reportPicker
+        title: "导出完整审阅报告"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["HTML 报告 (*.html)"]
+        defaultSuffix: "html"
+        onAccepted: window.controller.exportReport(selectedFile)
     }
 
     FileDialog {
@@ -177,14 +210,42 @@ ApplicationWindow {
                 currentIndex: window.controller.changeIndex
                 onActivated: index => window.controller.jumpToChange(index)
             }
+            CheckBox {
+                objectName: "reviewToggle"
+                text: "审阅列表"
+                checked: window.width >= 1280 ? window.showReview : homeReviewDrawer.opened
+                onClicked: {
+                    if (window.width < 1280) {
+                        if (homeReviewDrawer.opened) homeReviewDrawer.close();
+                        else homeReviewDrawer.open();
+                    } else window.showReview = checked;
+                }
+            }
+            CheckBox {
+                objectName: "wordHighlight"
+                text: "词级高亮"
+                checked: window.controller.wordMode
+                onClicked: window.controller.setWordMode(checked)
+            }
+            Button {
+                objectName: "exportReport"
+                text: "导出报告"
+                enabled: !window.workInProgress
+                onClicked: reportPicker.open()
+            }
         }
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.leftMargin: 20
             Layout.rightMargin: 20
-            uniformCellSizes: true
             spacing: 12
+            ReviewPane {
+                Layout.preferredWidth: 360
+                Layout.fillHeight: true
+                visible: window.controller.changeCount > 0 && window.width >= 1280 && window.showReview
+                backend: window.controller
+            }
             DocumentPane {
                 id: leftPane
                 Layout.fillWidth: true
@@ -194,6 +255,8 @@ ApplicationWindow {
                 documentName: window.controller.leftName
                 textEncoding: window.controller.leftEncoding
                 busy: window.controller.busy
+                previewPages: window.controller.leftPreview
+                activeGroup: window.controller.changeIndex
                 onPickFile: { picker.side = side; picker.open(); }
                 onEncodingChangedByUser: value => window.controller.setEncoding(side, value)
             }
@@ -206,9 +269,22 @@ ApplicationWindow {
                 documentName: window.controller.rightName
                 textEncoding: window.controller.rightEncoding
                 busy: window.controller.busy
+                previewPages: window.controller.rightPreview
+                activeGroup: window.controller.changeIndex
                 onPickFile: { picker.side = side; picker.open(); }
                 onEncodingChangedByUser: value => window.controller.setEncoding(side, value)
             }
+        }
+        Label {
+            Layout.fillWidth: true
+            Layout.leftMargin: 22
+            Layout.rightMargin: 22
+            Layout.topMargin: 6
+            text: window.controller.coverageNotice
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            color: "#6b562f"
+            font.pixelSize: 11
         }
         Label {
             Layout.fillWidth: true

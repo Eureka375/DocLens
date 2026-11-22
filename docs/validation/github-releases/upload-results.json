@@ -1,0 +1,326 @@
+{
+  "repository": "Eureka375/DocLens",
+  "checked_at_utc": "2026-11-22T06:43:37.797360+00:00",
+  "versions": [
+    {
+      "version": "t01",
+      "tag": "archive-t01",
+      "target_sha": "48af8f9fb91806c0592a226d8655f8f2ea96fc1c",
+      "historical_archive": true,
+      "prerelease": true,
+      "local_file": "releases/t01/DocLens-T01-Windows原型.zip",
+      "asset_name": "DocLens-T01-Windows.zip",
+      "checksum_file": "releases/t01/DocLens-T01-Windows.zip.sha256",
+      "bytes": 60474728,
+      "sha256": "2bc8b684d89113b50349101b8253acf55bb55003a12d6f3fd6329444f435c3d1",
+      "zip_crc_verified": true,
+      "status": "published_verified",
+      "release_url": "https://github.com/Eureka375/DocLens/releases/tag/archive-t01",
+      "release_id": 454249241,
+      "assets": [
+        {
+          "name": "DocLens-T01-Windows.zip",
+          "bytes": 60474728,
+          "sha256": "2bc8b684d89113b50349101b8253acf55bb55003a12d6f3fd6329444f435c3d1",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/untagged-7f9ac1917c967f002035/DocLens-T01-Windows.zip",
+          "remote_digest_verified": true
+        },
+        {
+          "name": "DocLens-T01-Windows.zip.sha256",
+          "bytes": 91,
+          "sha256": "3b80217c527431fff32cecc29de732a3f3b7a4ba8de3821855d6bc84dac7a9e6",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/untagged-7f9ac1917c967f002035/DocLens-T01-Windows.zip.sha256",
+          "remote_digest_verified": true
+        }
+      ]
+    },
+    {
+      "version": "v0.2.0",
+      "tag": "archive-v0.2.0",
+      "target_sha": "48af8f9fb91806c0592a226d8655f8f2ea96fc1c",
+      "historical_archive": true,
+      "prerelease": false,
+      "local_file": "releases/v0.2.0/DocLens-V0.2-Windows.zip",
+      "asset_name": "DocLens-V0.2-Windows.zip",
+      "checksum_file": "releases/v0.2.0/DocLens-V0.2-Windows.zip.sha256",
+      "bytes": 71097809,
+      "sha256": "2a8010df644deb8a4f7e33cd6254a2e99d3b808a22076c21b302df66c700c0e3",
+      "zip_crc_verified": true,
+      "status": "published_verified",
+      "release_url": "https://github.com/Eureka375/DocLens/releases/tag/archive-v0.2.0",
+      "release_id": 454251646,
+      "assets": [
+        {
+          "name": "DocLens-V0.2-Windows.zip",
+          "bytes": 71097809,
+          "sha256": "2a8010df644deb8a4f7e33cd6254a2e99d3b808a22076c21b302df66c700c0e3",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/untagged-9a22647066d139fbe128/DocLens-V0.2-Windows.zip",
+          "remote_digest_verified": true
+        },
+        {
+          "name": "DocLens-V0.2-Windows.zip.sha256",
+          "bytes": 92,
+          "sha256": "caf32a50f10600a58d07c09373f291324fe5bbae35470f9c374723f2901471b7",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/untagged-9a22647066d139fbe128/DocLens-V0.2-Windows.zip.sha256",
+          "remote_digest_verified": true
+        }
+      ]
+    },
+    {
+      "version": "v0.2.1",
+      "tag": "archive-v0.2.1",
+      "target_sha": "48af8f9fb91806c0592a226d8655f8f2ea96fc1c",
+      "historical_archive": true,
+      "prerelease": false,
+      "local_file": "releases/v0.2.1/DocLens-V0.2.1-DeepSeek-Windows.zip",
+      "asset_name": "DocLens-V0.2.1-DeepSeek-Windows.zip",
+      "checksum_file": "releases/v0.2.1/DocLens-V0.2.1-DeepSeek-Windows.zip.sha256",
+      "bytes": 71098241,
+      "sha256": "42e6c85c3219e5de277be92b12c24f43dd90e32dfad167bea25783c4478f1aef",
+      "zip_crc_verified": true,
+      "status": "published_verified",
+      "release_url": "https://github.com/Eureka375/DocLens/releases/tag/archive-v0.2.1",
+      "release_id": 454252463,
+      "assets": [
+        {
+          "name": "DocLens-V0.2.1-DeepSeek-Windows.zip",
+          "bytes": 71098241,
+          "sha256": "42e6c85c3219e5de277be92b12c24f43dd90e32dfad167bea25783c4478f1aef",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/untagged-120b9cb77e31ef1e1f11/DocLens-V0.2.1-DeepSeek-Windows.zip",
+          "remote_digest_verified": true
+        },
+        {
+          "name": "DocLens-V0.2.1-DeepSeek-Windows.zip.sha256",
+          "bytes": 103,
+          "sha256": "b14de0d5f77abae232ec2a2179857269425ed98c8b1084763be5fefb6d7ef84c",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/untagged-120b9cb77e31ef1e1f11/DocLens-V0.2.1-DeepSeek-Windows.zip.sha256",
+          "remote_digest_verified": true
+        }
+      ]
+    },
+    {
+      "version": "v0.3.0",
+      "tag": "v0.3.0",
+      "target_sha": "138c0e7ac3114249a845ec082c9c2870b01cd12b",
+      "historical_archive": false,
+      "prerelease": false,
+      "local_file": "releases/v0.3.0/DocLens-V0.3.0-Windows.zip",
+      "asset_name": "DocLens-V0.3.0-Windows.zip",
+      "checksum_file": "releases/v0.3.0/DocLens-V0.3.0-Windows.zip.sha256",
+      "bytes": 70669853,
+      "sha256": "91badf9c8cfbb5f2f16882ac518727769288839d6e52b1b7d8dafe071ff0ad57",
+      "zip_crc_verified": true,
+      "status": "published_verified",
+      "release_url": "https://github.com/Eureka375/DocLens/releases/tag/v0.3.0",
+      "release_id": 454253717,
+      "assets": [
+        {
+          "name": "DocLens-V0.3.0-Windows.zip",
+          "bytes": 70669853,
+          "sha256": "91badf9c8cfbb5f2f16882ac518727769288839d6e52b1b7d8dafe071ff0ad57",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/untagged-fceb4f89f4a56cd1f866/DocLens-V0.3.0-Windows.zip",
+          "remote_digest_verified": true
+        },
+        {
+          "name": "DocLens-V0.3.0-Windows.zip.sha256",
+          "bytes": 94,
+          "sha256": "8e9c8c438491811ac5fde701de1588ec1d0d6e0eb6fd873b93ca54b62617e122",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/untagged-fceb4f89f4a56cd1f866/DocLens-V0.3.0-Windows.zip.sha256",
+          "remote_digest_verified": true
+        }
+      ]
+    },
+    {
+      "version": "v0.3.1",
+      "tag": "v0.3.1",
+      "target_sha": "54657c0f815fa7f1fe794a5391e6c886faecb777",
+      "historical_archive": false,
+      "prerelease": false,
+      "local_file": "releases/v0.3.1/DocLens-V0.3.1-Windows.zip",
+      "asset_name": "DocLens-V0.3.1-Windows.zip",
+      "checksum_file": "releases/v0.3.1/DocLens-V0.3.1-Windows.zip.sha256",
+      "bytes": 70674888,
+      "sha256": "f7cd43a5ddaddc09d5c861f6d62f4083b62a8be5932923bc6becbe0b20275659",
+      "zip_crc_verified": true,
+      "status": "published_verified",
+      "release_url": "https://github.com/Eureka375/DocLens/releases/tag/v0.3.1",
+      "release_id": 454254598,
+      "assets": [
+        {
+          "name": "DocLens-V0.3.1-Windows.zip",
+          "bytes": 70674888,
+          "sha256": "f7cd43a5ddaddc09d5c861f6d62f4083b62a8be5932923bc6becbe0b20275659",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/untagged-e776f4fd44d9d28ebf14/DocLens-V0.3.1-Windows.zip",
+          "remote_digest_verified": true
+        },
+        {
+          "name": "DocLens-V0.3.1-Windows.zip.sha256",
+          "bytes": 94,
+          "sha256": "35245a6dd4744e6873be9051a1792e682ab5f6a7dedbe2b449c61394b0cd88ec",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/untagged-e776f4fd44d9d28ebf14/DocLens-V0.3.1-Windows.zip.sha256",
+          "remote_digest_verified": true
+        }
+      ]
+    },
+    {
+      "version": "v0.4.0",
+      "tag": "v0.4.0",
+      "target_sha": "f150bcd922daa9989a22c25a4eaeb60db32aaf61",
+      "historical_archive": false,
+      "prerelease": false,
+      "local_file": "releases/v0.4.0/DocLens-V0.4.0-Windows.zip",
+      "asset_name": "DocLens-V0.4.0-Windows.zip",
+      "checksum_file": "releases/v0.4.0/DocLens-V0.4.0-Windows.zip.sha256",
+      "bytes": 81300051,
+      "sha256": "7f2d2daa63d6578f8e3c1caeb1a9ace3e50a94dc3c8a1b5710abae8cedcb882f",
+      "zip_crc_verified": true,
+      "status": "published_verified",
+      "release_url": "https://github.com/Eureka375/DocLens/releases/tag/v0.4.0",
+      "release_id": 454255977,
+      "assets": [
+        {
+          "name": "DocLens-V0.4.0-Windows.zip",
+          "bytes": 81300051,
+          "sha256": "7f2d2daa63d6578f8e3c1caeb1a9ace3e50a94dc3c8a1b5710abae8cedcb882f",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/untagged-600efb3a888f274de9ed/DocLens-V0.4.0-Windows.zip",
+          "remote_digest_verified": true
+        },
+        {
+          "name": "DocLens-V0.4.0-Windows.zip.sha256",
+          "bytes": 94,
+          "sha256": "68e3c2418ef05b5bd8e76275ecbe8d76179c74e10c0a88261a36bf82efdc5d3c",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/untagged-600efb3a888f274de9ed/DocLens-V0.4.0-Windows.zip.sha256",
+          "remote_digest_verified": true
+        }
+      ]
+    },
+    {
+      "version": "v0.4.1",
+      "tag": "v0.4.1",
+      "target_sha": "0fc0f6d393d352b4b7259ac1a2de6593059deb69",
+      "historical_archive": false,
+      "prerelease": false,
+      "local_file": "releases/v0.4.1/DocLens-V0.4.1-Windows.zip",
+      "asset_name": "DocLens-V0.4.1-Windows.zip",
+      "checksum_file": "releases/v0.4.1/DocLens-V0.4.1-Windows.zip.sha256",
+      "bytes": 81317166,
+      "sha256": "f8c8daf11272a2cde6d6efcef121a2d8f147b350e1394729d9dc94d19032a2a8",
+      "zip_crc_verified": true,
+      "status": "published_verified",
+      "release_url": "https://github.com/Eureka375/DocLens/releases/tag/v0.4.1",
+      "release_id": 454254798,
+      "assets": [
+        {
+          "name": "DocLens-V0.4.1-Windows.zip",
+          "bytes": 81317166,
+          "sha256": "f8c8daf11272a2cde6d6efcef121a2d8f147b350e1394729d9dc94d19032a2a8",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/v0.4.1/DocLens-V0.4.1-Windows.zip",
+          "remote_digest_verified": true
+        },
+        {
+          "name": "DocLens-V0.4.1-Windows.zip.sha256",
+          "bytes": 94,
+          "sha256": "67f1f482a89b34cbdc0de3cb3a01f08c729286d5c280f13dfd8b18feb8a25c26",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/v0.4.1/DocLens-V0.4.1-Windows.zip.sha256",
+          "remote_digest_verified": true
+        }
+      ]
+    },
+    {
+      "version": "v0.4.2",
+      "tag": "v0.4.2",
+      "target_sha": "97806ebdd92db5c2426d4cc7e26a7020e161ac95",
+      "historical_archive": false,
+      "prerelease": false,
+      "local_file": "releases/v0.4.2/DocLens-V0.4.2-Windows.zip",
+      "asset_name": "DocLens-V0.4.2-Windows.zip",
+      "checksum_file": "releases/v0.4.2/DocLens-V0.4.2-Windows.zip.sha256",
+      "bytes": 81316575,
+      "sha256": "2f3dc1e2956541c77f6aa70679fb0cf15e0a781ee7f1159c928a10e8e2b99e3b",
+      "zip_crc_verified": true,
+      "status": "published_verified",
+      "release_url": "https://github.com/Eureka375/DocLens/releases/tag/v0.4.2",
+      "release_id": 454254422,
+      "assets": [
+        {
+          "name": "DocLens-V0.4.2-Windows.zip",
+          "bytes": 81316575,
+          "sha256": "2f3dc1e2956541c77f6aa70679fb0cf15e0a781ee7f1159c928a10e8e2b99e3b",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/v0.4.2/DocLens-V0.4.2-Windows.zip",
+          "remote_digest_verified": true
+        },
+        {
+          "name": "DocLens-V0.4.2-Windows.zip.sha256",
+          "bytes": 94,
+          "sha256": "c891ae0df503a1d7351a841a6618244c4b9ad4e492156bf1d1bf1d295440c813",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/v0.4.2/DocLens-V0.4.2-Windows.zip.sha256",
+          "remote_digest_verified": true
+        }
+      ]
+    },
+    {
+      "version": "v0.5.0",
+      "tag": "v0.5.0",
+      "target_sha": "a775e0144c3a78f84a8547d397b56f088a2054ec",
+      "historical_archive": false,
+      "prerelease": false,
+      "local_file": "releases/v0.5.0/DocLens-V0.5.0-Windows.zip",
+      "asset_name": "DocLens-V0.5.0-Windows.zip",
+      "checksum_file": "releases/v0.5.0/DocLens-V0.5.0-Windows.zip.sha256",
+      "bytes": 81336430,
+      "sha256": "d614d17f6cee9b5749e280e820d10ab0093925c2e54c05d6442d0e84ef2033d4",
+      "zip_crc_verified": true,
+      "status": "published_verified",
+      "release_url": "https://github.com/Eureka375/DocLens/releases/tag/v0.5.0",
+      "release_id": 454252687,
+      "assets": [
+        {
+          "name": "DocLens-V0.5.0-Windows.zip",
+          "bytes": 81336430,
+          "sha256": "d614d17f6cee9b5749e280e820d10ab0093925c2e54c05d6442d0e84ef2033d4",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/v0.5.0/DocLens-V0.5.0-Windows.zip",
+          "remote_digest_verified": true
+        },
+        {
+          "name": "DocLens-V0.5.0-Windows.zip.sha256",
+          "bytes": 94,
+          "sha256": "b9bc2a98a01a2e9f1b6d3b1eaf48b48e7bd890047e53db3147b06614555a1501",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/v0.5.0/DocLens-V0.5.0-Windows.zip.sha256",
+          "remote_digest_verified": true
+        }
+      ]
+    },
+    {
+      "version": "v0.5.1",
+      "tag": "v0.5.1",
+      "target_sha": "adda58ee6d0b24506122d707706b8563dd03a977",
+      "historical_archive": false,
+      "prerelease": false,
+      "local_file": "releases/v0.5.1/DocLens-V0.5.1-Windows.zip",
+      "asset_name": "DocLens-V0.5.1-Windows.zip",
+      "checksum_file": "releases/v0.5.1/DocLens-V0.5.1-Windows.zip.sha256",
+      "bytes": 81338047,
+      "sha256": "a3189b05c9bd6a9f9272b9a0bb8a67b365cebdab4c9a6777246b4b4badb75db7",
+      "zip_crc_verified": true,
+      "status": "published_verified",
+      "release_url": "https://github.com/Eureka375/DocLens/releases/tag/v0.5.1",
+      "release_id": 454252671,
+      "assets": [
+        {
+          "name": "DocLens-V0.5.1-Windows.zip",
+          "bytes": 81338047,
+          "sha256": "a3189b05c9bd6a9f9272b9a0bb8a67b365cebdab4c9a6777246b4b4badb75db7",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/v0.5.1/DocLens-V0.5.1-Windows.zip",
+          "remote_digest_verified": true
+        },
+        {
+          "name": "DocLens-V0.5.1-Windows.zip.sha256",
+          "bytes": 94,
+          "sha256": "b9c0254b202a327d9bc81e3d9e93936e8641a13a52c4bbf6b932f4d67a732aa9",
+          "download_url": "https://github.com/Eureka375/DocLens/releases/download/v0.5.1/DocLens-V0.5.1-Windows.zip.sha256",
+          "remote_digest_verified": true
+        }
+      ]
+    }
+  ]
+}

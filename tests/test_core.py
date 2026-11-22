@@ -211,3 +211,16 @@ def test_comparison_checks_cancel_before_work(tmp_path):
         raise InterruptedError
     with pytest.raises(InterruptedError):
         compare(left, right, check_cancelled=stop)
+
+
+def test_word_edits_keep_english_tokens_and_numeric_results_whole(tmp_path):
+    from doclens.documents import read_document
+    from doclens.diff import compare
+    paths = [tmp_path / "old.txt", tmp_path / "new.txt"]
+    for path, text in zip(paths, ["The accuracy is 91.5% 有效。", "The precision is 93.2% 有效。"]):
+        path.write_text(text, encoding="utf-8")
+    left, right = map(read_document, paths)
+    change, = compare(left, right).changes
+    assert [left.text[s.start:s.end] for s in change.left_word_edits] == ["accuracy", "91.5"]
+    assert [right.text[s.start:s.end] for s in change.right_word_edits] == ["precision", "93.2"]
+    assert change.left_edits and change.right_edits

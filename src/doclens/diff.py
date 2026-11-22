@@ -2,6 +2,7 @@ from bisect import bisect_left
 from collections import Counter
 from collections.abc import Callable, Iterator, Sequence
 from difflib import SequenceMatcher
+import re
 
 from .documents import no_cancel
 from .models import Change, Comparison, Snapshot, Span
@@ -10,10 +11,24 @@ from .models import Change, Comparison, Snapshot, Span
 BLOCK_PAIR_LIMIT = 240_000
 CHAR_PAIR_LIMIT = 160_000
 Operation = tuple[str, int, int, int, int]
+WORD_TOKEN = re.compile(r"\d+(?:\.\d+)*|[^\W\d_\u3400-\u9fff]+|\s+|.", re.UNICODE)
+
+
+def _word_edits(left: str, right: str, a: int, b: int, check_cancelled):
+    tokens = [[m for m in WORD_TOKEN.finditer(text)] for text in (left, right)]
+    operations, coarse = _operations([m.group() for m in tokens[0]], [m.group() for m in tokens[1]],
+                                      CHAR_PAIR_LIMIT, check_cancelled)
+    edits = [[], []]
+    for _, i, j, k, l in operations:
+        for side, start, end, offset in ((0, i, j, a), (1, k, l, b)):
+            if start < end:
+                edits[side].append(Span(offset + tokens[side][start].start(),
+                                        offset + tokens[side][end - 1].end()))
+    return tuple(edits[0]), tuple(edits[1]), coarse
 
 
 def _operations(left: Sequence[str], right: Sequence[str], pair_limit: int,
-                check_cancelled: Callable[[], None]):
+                check_cancelled: Callable[[], None], work_budget: list[int] | None = None):
     prefix = 0
     shorter = min(len(left), len(right))
     while prefix < shorter and left[prefix] == right[prefix]:
@@ -29,8 +44,12 @@ def _operations(left: Sequence[str], right: Sequence[str], pair_limit: int,
         return (("insert", prefix, a, prefix, b),), False
     if b == prefix:
         return (("delete", prefix, a, prefix, b),), False
-    if (a - prefix) * (b - prefix) > pair_limit:
+    cost = (a - prefix) * (b - prefix)
+    limit = min(pair_limit, work_budget[0]) if work_budget is not None else pair_limit
+    if cost > limit:
         return (("replace", prefix, a, prefix, b),), True
+    if work_budget is not None:
+        work_budget[0] -= cost
     operations = SequenceMatcher(None, left[prefix:a], right[prefix:b], autojunk=False).get_opcodes()
     return tuple((kind, i + prefix, j + prefix, k + prefix, l + prefix)
                  for kind, i, j, k, l in operations if kind != "equal"), False
@@ -62,8 +81,11 @@ def _ordered_anchors(left: list[str], right: list[str]) -> list[tuple[int, int]]
     return chain[::-1]
 
 
-def _block_operations(left: list[str], right: list[str], check_cancelled: Callable[[], None]):
-    operations, coarse = _operations(left, right, BLOCK_PAIR_LIMIT, check_cancelled)
+def _block_operations(left: list[str], right: list[str], check_cancelled: Callable[[], None],
+                      work_budget: list[int] | None = None):
+    if work_budget is None:
+        work_budget = [4 * BLOCK_PAIR_LIMIT]
+    operations, coarse = _operations(left, right, BLOCK_PAIR_LIMIT, check_cancelled, work_budget)
     if not coarse:
         return operations, False
     _, i, j, k, l = operations[0]
@@ -71,19 +93,15 @@ def _block_operations(left: list[str], right: list[str], check_cancelled: Callab
     if not anchors:
         return operations, True
     # Never let many bounded subregions add up to unbounded quadratic work.
-    pair_budget = 4 * BLOCK_PAIR_LIMIT
     a, b = i, k
     matches = []
     fallback = False
     for x, y in [(i + x, k + y) for x, y in anchors] + [(j, l)]:
         if a < x or b < y:
-            pairs = (x - a) * (y - b)
-            limit = min(pair_budget, BLOCK_PAIR_LIMIT)
-            gap, approximate = _operations(left[a:x], right[b:y], limit, check_cancelled)
+            gap, approximate = _operations(left[a:x], right[b:y], BLOCK_PAIR_LIMIT,
+                                           check_cancelled, work_budget)
             matches.extend((kind, p + a, q + a, r + b, s + b) for kind, p, q, r, s in gap)
             fallback |= approximate
-            if pairs <= limit:
-                pair_budget -= pairs
         a, b = x + 1, y + 1
     return tuple(matches), fallback
 
@@ -146,13 +164,70 @@ def _block_span(snapshot: Snapshot, start: int, end: int) -> tuple[Span, str]:
     return Span(blocks[start].span.start, blocks[end - 1].span.end), location
 
 
+def _structured_operations(left: Snapshot, right: Snapshot, check_cancelled: Callable[[], None]):
+    a, b = [block.text for block in left.blocks], [block.text for block in right.blocks]
+    # Non-headings share an empty key and cannot become unique anchors.
+    def keys(snapshot):
+        return [repr(block.section_path) if block.kind == "heading" else "" for block in snapshot.blocks]
+
+    anchors = _ordered_anchors(keys(left), keys(right))
+    if not anchors:
+        return _block_operations(a, b, check_cancelled)
+    operations = []
+    coarse = False
+    budget = [4 * BLOCK_PAIR_LIMIT]
+    i = k = 0
+    for j, l in anchors + [(len(a), len(b))]:
+        check_cancelled()
+        gap, approximate = _block_operations(a[i:j], b[k:l], check_cancelled, budget)
+        operations.extend((kind, x + i, y + i, z + k, w + k) for kind, x, y, z, w in gap)
+        coarse |= approximate
+        # Matching paths normally have identical headings. Preserve literal
+        # changes (e.g. Markdown marker spacing) even when the title is equal.
+        if j < len(a) and a[j] != b[l]:
+            operations.append(("replace", j, j + 1, l, l + 1))
+        i, k = j + 1, l + 1
+    return tuple(operations), coarse
+
+
+def _paragraph_changes(operations: Sequence[Operation], left: Snapshot, right: Snapshot,
+                       check_cancelled: Callable[[], None]) -> Iterator[Operation]:
+    # Split only confident one-to-one paragraph edits. Splits, merges and
+    # unrelated replacements retain their complete region as evidence.
+    budget = 4 * CHAR_PAIR_LIMIT
+    for operation in operations:
+        kind, i, j, k, l = operation
+        if kind != "replace" or j - i != l - k or j - i <= 1:
+            yield operation
+            continue
+        pairs = list(zip(left.blocks[i:j], right.blocks[k:l]))
+        aligned = True
+        for a, b in pairs:
+            check_cancelled()
+            cost = len(a.text) * len(b.text)
+            if (not a.text.strip() or not b.text.strip() or a.kind != b.kind
+                    or a.table_path != b.table_path or cost > min(CHAR_PAIR_LIMIT, budget)):
+                aligned = False
+                break
+            budget -= cost
+            if SequenceMatcher(None, a.text, b.text, autojunk=False).ratio() < 0.45:
+                aligned = False
+                break
+        if aligned:
+            for offset in range(j - i):
+                yield "replace", i + offset, i + offset + 1, k + offset, k + offset + 1
+        else:
+            yield operation
+
+
 def compare(left: Snapshot, right: Snapshot, check_cancelled: Callable[[], None] = no_cancel) -> Comparison:
     check_cancelled()
     if left.text == right.text:
         return Comparison((), False)
     left_blocks, right_blocks = [b.text for b in left.blocks], [b.text for b in right.blocks]
-    operations, coarse = _block_operations(left_blocks, right_blocks, check_cancelled)
+    operations, coarse = _structured_operations(left, right, check_cancelled)
     changes = []
+    operations = tuple(_paragraph_changes(operations, left, right, check_cancelled))
     for kind, i, j, k, l in _with_moves(operations, left_blocks, right_blocks, check_cancelled):
         check_cancelled()
         a, left_location = _block_span(left, i, j)
@@ -163,8 +238,13 @@ def compare(left: Snapshot, right: Snapshot, check_cancelled: Callable[[], None]
             coarse |= approximate
             left_edits = tuple(Span(a.start + start, a.start + end) for _, start, end, _, _ in edits if start < end)
             right_edits = tuple(Span(b.start + start, b.start + end) for _, _, _, start, end in edits if start < end)
+            left_words, right_words, approximate = _word_edits(
+                left.text[a.start:a.end], right.text[b.start:b.end], a.start, b.start, check_cancelled)
+            coarse |= approximate
         else:
             left_edits = (a,) if a.start < a.end else ()
             right_edits = (b,) if b.start < b.end else ()
-        changes.append(Change(kind, a, b, left_location, right_location, left_edits, right_edits))
+            left_words, right_words = left_edits, right_edits
+        changes.append(Change(kind, a, b, left_location, right_location, left_edits, right_edits,
+                              left_words, right_words))
     return Comparison(tuple(changes), coarse)

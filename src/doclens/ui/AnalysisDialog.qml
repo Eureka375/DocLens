@@ -7,11 +7,18 @@ Dialog {
     required property QtObject backend
     required property int changeCount
     required property int activeGroup
+    signal homeRequested()
     anchors.centerIn: parent
     title: "AI 差异分析"
     modal: true
     standardButtons: Dialog.Close
     closePolicy: Popup.CloseOnEscape
+    Component.onCompleted: {
+        endpoint.text = backend.savedEndpoint;
+        modelName.text = backend.savedModel;
+        var profiles = ["auto", "compatible", "json", "deepseek"];
+        provider.currentIndex = Math.max(0, profiles.indexOf(backend.savedProvider));
+    }
     onOpened: {
         if (backend.report.length === 0 && !backend.busy) {
             first.value = activeGroup;
@@ -22,6 +29,7 @@ Dialog {
     Connections {
         target: analysis.backend
         function onEvidenceRequested() { analysis.close(); }
+        function onSettingsSaved() { key.clear(); }
     }
 
     contentItem: ColumnLayout {
@@ -53,9 +61,57 @@ Dialog {
                 id: key
                 objectName: "aiKey"
                 Layout.fillWidth: true
-                placeholderText: "仅在本次应用会话中使用"
+                placeholderText: analysis.backend.savedKeyAvailable && endpoint.text.trim() === analysis.backend.savedEndpoint
+                    ? "已保存，留空即可使用；输入新密钥可替换" : "填写一次，保存后可长期使用"
                 echoMode: TextInput.Password
                 maximumLength: 4096
+            }
+            Label { text: "请求格式" }
+            ComboBox {
+                id: provider
+                objectName: "aiProvider"
+                Layout.fillWidth: true
+                textRole: "label"
+                valueRole: "profile"
+                model: [
+                    {label: "自动识别（兼容现有设置）", profile: "auto"},
+                    {label: "通用 Chat Completions", profile: "compatible"},
+                    {label: "Chat Completions + JSON 模式", profile: "json"},
+                    {label: "DeepSeek 请求格式", profile: "deepseek"}
+                ]
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Label {
+                Layout.fillWidth: true
+                text: analysis.backend.settingsStatus
+                textFormat: Text.PlainText
+                wrapMode: Text.Wrap
+                color: "#53675f"
+            }
+            Button {
+                objectName: "aiSaveSettings"
+                text: "保存设置"
+                enabled: !analysis.backend.busy
+                onClicked: {
+                    if (analysis.backend.saveSettings(endpoint.text, modelName.text, key.text, provider.currentValue))
+                        key.clear();
+                }
+            }
+            Button {
+                objectName: "aiClearSettings"
+                text: "清除保存的设置"
+                enabled: !analysis.backend.busy
+                onClicked: {
+                    if (analysis.backend.clearSavedSettings()) {
+                        key.clear();
+                        endpoint.clear();
+                        modelName.clear();
+                        provider.currentIndex = 0;
+                    }
+                }
             }
         }
 
@@ -89,9 +145,24 @@ Dialog {
                 onClicked: analysis.backend.clearCache()
             }
             Button {
+                objectName: "aiHome"
+                text: "首页查看"
+                visible: analysis.backend.busy || analysis.backend.report.length > 0
+                onClicked: { analysis.close(); analysis.homeRequested(); }
+            }
+            Button {
                 text: "取消等待"
                 visible: analysis.backend.busy
                 onClicked: analysis.backend.cancel()
+            }
+            Button {
+                objectName: "aiPrepareMissing"
+                text: "补充未完成组"
+                enabled: analysis.changeCount > 0 && !analysis.backend.busy
+                onClicked: {
+                    if (analysis.backend.prepareMissing(first.value, last.value, endpoint.text, modelName.text, provider.currentValue))
+                        confirmation.open();
+                }
             }
             Button {
                 objectName: "aiPrepare"
@@ -99,7 +170,7 @@ Dialog {
                 highlighted: true
                 enabled: analysis.changeCount > 0 && !analysis.backend.busy
                 onClicked: {
-                    if (analysis.backend.prepare(first.value, last.value, endpoint.text, modelName.text))
+                    if (analysis.backend.prepare(first.value, last.value, endpoint.text, modelName.text, provider.currentValue))
                         confirmation.open();
                 }
             }
@@ -114,8 +185,29 @@ Dialog {
         }
         Label {
             Layout.fillWidth: true
+            text: analysis.backend.progress
+            color: "#53675f"
+            wrapMode: Text.Wrap
+        }
+        ListView {
+            objectName: "aiCoverage"
+            Layout.fillWidth: true
+            Layout.preferredHeight: visible ? 62 : 0
+            visible: count > 0
+            clip: true
+            model: analysis.backend.coverage
+            ScrollBar.vertical: ScrollBar {}
+            delegate: Label {
+                required property var modelData
+                width: ListView.view.width
+                text: "第 " + modelData.group + " 组 · " + modelData.status
+                color: modelData.status === "已解释" ? "#25483d" : "#845323"
+            }
+        }
+        Label {
+            Layout.fillWidth: true
             visible: analysis.backend.report.length > 0
-            text: "点击证据可回到对应原文。请以原文核对模型解释。"
+            text: "结果已同步首页左侧对应分组，关闭此窗口即可查看。失败或未覆盖时保留此前解释，请结合本轮状态核对。"
             color: "#53675f"
             font.pixelSize: 12
         }
@@ -155,7 +247,7 @@ Dialog {
                     Label {
                         Layout.fillWidth: true
                         visible: !!card.modelData.impact
-                        text: card.modelData.impact
+                        text: "AI 推测的可能影响（需核对）：" + card.modelData.impact
                         textFormat: Text.PlainText
                         wrapMode: Text.Wrap
                         color: "#415c51"
@@ -206,6 +298,8 @@ Dialog {
                 Layout.fillWidth: true
                 text: analysis.backend.scope
                 wrapMode: Text.Wrap
+                maximumLineCount: 3
+                elide: Text.ElideRight
                 color: "#53675f"
             }
             ScrollView {
