@@ -54,7 +54,8 @@ class AnalysisController(QObject):
     @Property("QVariantList", notify=reportChanged)
     def report(self) -> list[dict]:
         return [{"category": CATEGORIES[f.category], "summary": f.summary, "impact": f.impact,
-                 "evidence": [f"第 {e.change_index + 1} 组 · {e.side} · {e.id}" for e in f.evidence]}
+                 "evidence": [f"第 {e.change_index + 1} 组 · {e.side} · {e.id}" for e in f.evidence],
+                 "verification": f.verification}
                 for f in self._report]
 
     def set_comparison(self, left, right, comparison) -> None:
