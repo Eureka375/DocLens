@@ -77,3 +77,18 @@ uv run --locked python -m pytest -q
 uv pip install --python .\.venv\Scripts\python.exe PyInstaller==6.22.3
 .\scripts\package.ps1
 ```
+
+## 第一轮差异算法质量保障
+
+本轮采用保守的段落相似匹配辅助对齐；仅在原文和新版中全局唯一、文字完全一致的内容块上确认移动。对于不能可靠配对的内容，继续使用现有的新增、删除、替换结果。拆分与合并保留为一个或多个 `replace` 差异组，未增加不兼容的新 `Change.kind`。
+
+AI 分析每条结果必须引用已发送的证据 ID。引用某一差异组时，如发送了原文和新版两侧证据，两侧 ID 都必须出现，且点击仍可定位到原文。证据 ID 校验保证来源可定位，不等于自动验证模型的语义推理正确。
+
+完整测试与可重复的性能统计命令：
+
+```powershell
+uv run --locked python -m pytest -q
+uv run --locked python scripts/benchmark_diff.py --repeats 5 --output build/diff-metrics.json
+```
+
+标注样例在 `tests/fixtures/diff_cases.json`，包括新增、删除、替换、移动、拆分、合并、相邻变化、混合移动和重复文字反例。自动化流程在 `.github/workflows/ci.yml`，Ubuntu 执行核心回归和性能统计，Windows 执行原有桌面交互测试；本地性能受硬件、文档特征和重复次数影响，不能直接与 CI 的数字等同。首轮验证记录见 [docs/validation/phase1/README.md](docs/validation/phase1/README.md)。
