@@ -160,6 +160,14 @@ Dialog {
                         wrapMode: Text.Wrap
                         color: "#415c51"
                     }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "证据核验：" + card.modelData.verification
+                        textFormat: Text.PlainText
+                        wrapMode: Text.Wrap
+                        font.pixelSize: 12
+                        color: "#6a5a30"
+                    }
                     Flow {
                         Layout.fillWidth: true
                         Layout.preferredHeight: implicitHeight
