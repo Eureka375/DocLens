@@ -1,0 +1,149 @@
+[
+  {
+    "id": "insert",
+    "description": "新增段落",
+    "old": "标题\n固定段甲\n固定段乙\n结尾",
+    "new": "标题\n固定段甲\n新增协议\n固定段乙\n结尾",
+    "expected": [
+      {
+        "kind": "insert",
+        "left": "",
+        "right": "新增协议"
+      }
+    ]
+  },
+  {
+    "id": "delete",
+    "description": "删除段落",
+    "old": "标题\n固定段甲\n待删除条款\n固定段乙\n结尾",
+    "new": "标题\n固定段甲\n固定段乙\n结尾",
+    "expected": [
+      {
+        "kind": "delete",
+        "left": "待删除条款",
+        "right": ""
+      }
+    ]
+  },
+  {
+    "id": "replace",
+    "description": "数值替换",
+    "old": "标题\n项目需要在30天内完成。\n结尾",
+    "new": "标题\n项目需要在15天内完成。\n结尾",
+    "expected": [
+      {
+        "kind": "replace",
+        "left": "项目需要在30天内完成。",
+        "right": "项目需要在15天内完成。"
+      }
+    ],
+    "edits": {
+      "left": [
+        "30"
+      ],
+      "right": [
+        "15"
+      ]
+    }
+  },
+  {
+    "id": "move",
+    "description": "唯一段落移动",
+    "old": "章节一\n需要移动的条款\n稳定段甲\n稳定段乙\n尾部",
+    "new": "章节一\n稳定段甲\n稳定段乙\n需要移动的条款\n尾部",
+    "expected": [
+      {
+        "kind": "move",
+        "left": "需要移动的条款",
+        "right": "需要移动的条款"
+      }
+    ]
+  },
+  {
+    "id": "split",
+    "description": "一段拆分两段",
+    "old": "标题\n签署方应提交完成报告\n结尾",
+    "new": "标题\n签署方应提交\n完成报告\n结尾",
+    "expected": [
+      {
+        "kind": "replace",
+        "left": "签署方应提交完成报告",
+        "right": "签署方应提交\n完成报告"
+      }
+    ]
+  },
+  {
+    "id": "merge",
+    "description": "两段合并为一段",
+    "old": "标题\n签署方应提交\n完成报告\n结尾",
+    "new": "标题\n签署方应提交完成报告\n结尾",
+    "expected": [
+      {
+        "kind": "replace",
+        "left": "签署方应提交\n完成报告",
+        "right": "签署方应提交完成报告"
+      }
+    ]
+  },
+  {
+    "id": "adjacent_changes",
+    "description": "相邻的修改、新增、修改",
+    "old": "引言\n确认单应于30天内签署。\n申请人须提供纸质凭据。\n结束",
+    "new": "引言\n确认单应于15天内签署。\n新增风险审查步骤。\n申请人须提供电子凭据。\n结束",
+    "expected": [
+      {
+        "kind": "replace",
+        "left": "确认单应于30天内签署。",
+        "right": "确认单应于15天内签署。"
+      },
+      {
+        "kind": "insert",
+        "left": "",
+        "right": "新增风险审查步骤。"
+      },
+      {
+        "kind": "replace",
+        "left": "申请人须提供纸质凭据。",
+        "right": "申请人须提供电子凭据。"
+      }
+    ]
+  },
+  {
+    "id": "mixed_move",
+    "description": "修改与移动交错",
+    "old": "封面\n需要搬迁的说明段\n旧版本注释\n稳定段落甲\n稳定段落乙\n结束",
+    "new": "封面\n新版本注释\n稳定段落甲\n稳定段落乙\n需要搬迁的说明段\n结束",
+    "expected": [
+      {
+        "kind": "replace",
+        "left": "旧版本注释",
+        "right": "新版本注释"
+      },
+      {
+        "kind": "move",
+        "left": "需要搬迁的说明段",
+        "right": "需要搬迁的说明段"
+      }
+    ],
+    "unordered": true
+  },
+  {
+    "id": "repeated_text",
+    "description": "重复段落不误判移动",
+    "old": "标题\n相同条款\n稳定内容甲\n稳定内容乙\n相同条款\n结束",
+    "new": "标题\n稳定内容甲\n稳定内容乙\n相同条款\n相同条款\n结束",
+    "expected": [
+      {
+        "kind": "delete",
+        "left": "相同条款",
+        "right": ""
+      },
+      {
+        "kind": "insert",
+        "left": "",
+        "right": "相同条款"
+      }
+    ],
+    "unordered": true
+  }
+]
