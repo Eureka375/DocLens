@@ -64,6 +64,7 @@ def test_pdf_pages_and_text_offsets_survive_rotation_and_missing_text(tmp_path):
     assert path.read_bytes() == original
     assert doc.text == "Equipment request\nOwner: Lab\nDeadline: 14 days"
     assert [b.location for b in doc.blocks] == ["第 1 页 / 第 1 行", "第 1 页 / 第 2 行", "第 3 页 / 第 1 行"]
+    assert [b.page for b in doc.blocks] == [1, 1, 3]
     assert all(doc.text[b.span.start:b.span.end] == b.text for b in doc.blocks)
     assert any("第 2 页" in warning for warning in doc.warnings)
 
