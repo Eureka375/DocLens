@@ -18,6 +18,12 @@ def app():
     return QGuiApplication.instance() or QGuiApplication([])
 
 
+@pytest.fixture(autouse=True)
+def isolated_ai_settings(tmp_path, monkeypatch):
+    # Every test uses its own encrypted fixture; never access the user's settings.
+    monkeypatch.setattr("doclens.settings.default_settings_path", lambda: tmp_path / "ai-settings.bin")
+
+
 def wait_for(predicate):
     loop = QEventLoop()
     for _ in range(200):
@@ -540,4 +546,146 @@ def test_ai_provider_selection_reaches_request_and_invalid_citations_fall_back(a
         assert control(window, "rightText").property("selectedText") == "90"
     finally:
         ai.cancel()
+        window.close()
+
+
+def test_saved_ai_configuration_restores_and_reuses_key_after_restart(app):
+    from doclens.settings import AISettingsStore
+    endpoint = "https://models.example/chat/completions"
+    engine, window, controller = create_window(original_preview=False)
+    try:
+        assert controller.analysis.saveSettings(endpoint, "saved-model", "fictional-saved-key", "json")
+        assert controller.analysis.savedKeyAvailable
+    finally:
+        window.close()
+    service = FixtureNetwork()
+    engine2, window2, controller2 = create_window(original_preview=False, analysis_network=service)
+    ai = controller2.analysis
+    try:
+        assert control(window2, "aiEndpoint").property("text") == endpoint
+        assert control(window2, "aiModel").property("text") == "saved-model"
+        assert control(window2, "aiProvider").property("currentIndex") == 2
+        assert control(window2, "aiKey").property("text") == ""
+        assert "已保存" in control(window2, "aiKey").property("placeholderText")
+        sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
+        for side, name in (("left", "原版.txt"), ("right", "新版.txt")):
+            controller2.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
+        controller2.startComparison()
+        wait_for(lambda: not controller2.busy)
+        assert ai.prepare(1, 1, endpoint, "saved-model", "json")
+        ai.approveAndSend("")
+        wait_for(lambda: not ai.busy)
+        assert service.calls[0][0].rawHeader("Authorization") == b"Bearer fictional-saved-key"
+        assert b"fictional-saved-key" not in service.calls[0][1]
+        assert ai.report
+        # A different endpoint must never receive the remembered key.
+        assert ai.prepare(1, 1, "https://other.example/chat/completions", "saved-model")
+        ai.approveAndSend("")
+        assert len(service.calls) == 1 and "API Key" in ai.status
+        assert ai.clearSavedSettings()
+        assert not ai.savedKeyAvailable and not ai.report
+        assert AISettingsStore().load() is None
+    finally:
+        ai.cancel()
+        window2.close()
+
+
+def test_key_is_remembered_on_send_and_can_be_replaced(app):
+    from doclens.settings import AISettingsStore
+    service = FixtureNetwork()
+    engine, window, controller = create_window(original_preview=False, analysis_network=service)
+    ai = controller.analysis
+    endpoint = "https://models.example/chat/completions"
+    try:
+        sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
+        for side, name in (("left", "原版.txt"), ("right", "新版.txt")):
+            controller.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        assert ai.prepare(1, 1, endpoint, "saved-model")
+        ai.approveAndSend("fictional-first-key")
+        wait_for(lambda: not ai.busy)
+        assert AISettingsStore().load().api_key == "fictional-first-key"
+        assert ai.saveSettings(endpoint, "saved-model", "fictional-replacement", "auto")
+        assert ai.prepare(1, 1, endpoint, "saved-model")
+        ai.approveAndSend("")
+        wait_for(lambda: not ai.busy)
+        assert len(service.calls) == 2  # Replacing a key invalidates the old cache.
+        assert service.calls[-1][0].rawHeader("Authorization") == b"Bearer fictional-replacement"
+        assert ai.clearSavedSettings()
+        assert ai.prepare(1, 1, endpoint, "saved-model")
+        ai.approveAndSend("")
+        assert len(service.calls) == 2
+    finally:
+        ai.cancel()
+        window.close()
+
+
+def test_settings_buttons_save_and_clear_without_sending(app):
+    service = FixtureNetwork()
+    engine, window, controller = create_window(original_preview=False, analysis_network=service)
+    ai = controller.analysis
+    try:
+        sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
+        for side, name in (("left", "原版.txt"), ("right", "新版.txt")):
+            controller.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        click(window, "openAnalysis")
+        wait_for(lambda: control(window, "analysisDialog").property("opened"))
+        for field, value in (("aiEndpoint", "https://models.example/chat/completions"),
+                             ("aiModel", "saved-model"), ("aiKey", "fictional-key")):
+            control(window, field).setProperty("text", value)
+        click(window, "aiSaveSettings")
+        assert ai.savedKeyAvailable and not service.calls
+        assert control(window, "aiKey").property("text") == ""
+        click(window, "aiClearSettings")
+        assert not ai.savedKeyAvailable
+        assert control(window, "aiEndpoint").property("text") == ""
+        assert control(window, "aiModel").property("text") == ""
+    finally:
+        window.close()
+
+
+def test_failed_remember_keeps_new_key_input_and_sends_only_explicit_key(app, monkeypatch):
+    from doclens.settings import SettingsError
+    service = FixtureNetwork()
+    engine, window, controller = create_window(original_preview=False, analysis_network=service)
+    ai = controller.analysis
+    try:
+        endpoint = "https://models.example/chat/completions"
+        assert ai.saveSettings(endpoint, "model", "fictional-old-key", "auto")
+        def fail(config):
+            raise SettingsError("测试：未能安全保存")
+        monkeypatch.setattr(ai._settings_store, "save", fail)
+        sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
+        for side, name in (("left", "原版.txt"), ("right", "新版.txt")):
+            controller.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        click(window, "openAnalysis")
+        wait_for(lambda: control(window, "analysisDialog").property("opened"))
+        for field, value in (("aiEndpoint", endpoint), ("aiModel", "model"), ("aiKey", "fictional-new-key")):
+            control(window, field).setProperty("text", value)
+        click(window, "aiPrepare")
+        wait_for(lambda: control(window, "aiConfirmation").property("opened"))
+        click(window, "aiSend")
+        wait_for(lambda: not ai.busy)
+        assert service.calls[0][0].rawHeader("Authorization") == b"Bearer fictional-new-key"
+        assert "未能安全保存" in ai.settingsStatus
+        assert control(window, "aiKey").property("text") == "fictional-new-key"
+    finally:
+        ai.cancel()
+        window.close()
+
+
+def test_corrupt_settings_do_not_prevent_window_start(app):
+    from doclens.settings import AISettingsStore
+    AISettingsStore().path.write_bytes(b"invalid protected settings")
+    engine, window, controller = create_window(original_preview=False)
+    try:
+        assert not controller.analysis.savedKeyAvailable
+        assert "无法读取" in controller.analysis.settingsStatus
+        assert controller.analysis.clearSavedSettings()
+    finally:
         window.close()

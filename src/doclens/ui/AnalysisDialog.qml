@@ -12,6 +12,12 @@ Dialog {
     modal: true
     standardButtons: Dialog.Close
     closePolicy: Popup.CloseOnEscape
+    Component.onCompleted: {
+        endpoint.text = backend.savedEndpoint;
+        modelName.text = backend.savedModel;
+        var profiles = ["auto", "compatible", "json", "deepseek"];
+        provider.currentIndex = Math.max(0, profiles.indexOf(backend.savedProvider));
+    }
     onOpened: {
         if (backend.report.length === 0 && !backend.busy) {
             first.value = activeGroup;
@@ -22,6 +28,7 @@ Dialog {
     Connections {
         target: analysis.backend
         function onEvidenceRequested() { analysis.close(); }
+        function onSettingsSaved() { key.clear(); }
     }
 
     contentItem: ColumnLayout {
@@ -53,7 +60,8 @@ Dialog {
                 id: key
                 objectName: "aiKey"
                 Layout.fillWidth: true
-                placeholderText: "仅在本次应用会话中使用"
+                placeholderText: analysis.backend.savedKeyAvailable && endpoint.text.trim() === analysis.backend.savedEndpoint
+                    ? "已保存，留空即可使用；输入新密钥可替换" : "填写一次，保存后可长期使用"
                 echoMode: TextInput.Password
                 maximumLength: 4096
             }
@@ -70,6 +78,39 @@ Dialog {
                     {label: "Chat Completions + JSON 模式", profile: "json"},
                     {label: "DeepSeek 请求格式", profile: "deepseek"}
                 ]
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Label {
+                Layout.fillWidth: true
+                text: analysis.backend.settingsStatus
+                textFormat: Text.PlainText
+                wrapMode: Text.Wrap
+                color: "#53675f"
+            }
+            Button {
+                objectName: "aiSaveSettings"
+                text: "保存设置"
+                enabled: !analysis.backend.busy
+                onClicked: {
+                    if (analysis.backend.saveSettings(endpoint.text, modelName.text, key.text, provider.currentValue))
+                        key.clear();
+                }
+            }
+            Button {
+                objectName: "aiClearSettings"
+                text: "清除保存的设置"
+                enabled: !analysis.backend.busy
+                onClicked: {
+                    if (analysis.backend.clearSavedSettings()) {
+                        key.clear();
+                        endpoint.clear();
+                        modelName.clear();
+                        provider.currentIndex = 0;
+                    }
+                }
             }
         }
 

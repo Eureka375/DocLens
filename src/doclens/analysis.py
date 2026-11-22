@@ -54,6 +54,7 @@ class AnalysisDraft:
     preview: str
     scope: str
     fingerprint: str
+    provider: str = "auto"
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,7 +135,7 @@ def prepare_analysis(left: Snapshot, right: Snapshot, comparison: Comparison,
     coordinates = json.dumps([(e.id, e.span.start, e.span.end) for e in evidence]).encode("ascii")
     fingerprint = sha256(endpoint.encode() + b"\0" + provider.encode() + b"\0" + left.sha256.encode() + right.sha256.encode()
                          + coordinates + body).hexdigest()
-    return AnalysisDraft(endpoint, model, body, tuple(evidence), preview, scope, fingerprint)
+    return AnalysisDraft(endpoint, model, body, tuple(evidence), preview, scope, fingerprint, provider)
 
 
 def parse_analysis(response: bytes, draft: AnalysisDraft) -> tuple[Finding, ...]:

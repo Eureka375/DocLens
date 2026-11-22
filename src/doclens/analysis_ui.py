@@ -4,6 +4,7 @@ from PySide6.QtCore import QObject, Property, QTimer, QUrl, Signal, Slot
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
 from .analysis import CATEGORIES, MAX_REPLY_BYTES, AnalysisError, prepare_analysis, parse_analysis
+from .settings import AISettings, AISettingsStore, SettingsError, valid_api_key
 
 MAX_CACHE_ENTRIES = 16
 REQUEST_TIMEOUT_MS = 30_000
@@ -14,6 +15,8 @@ class AnalysisController(QObject):
     busyChanged = Signal()
     reportChanged = Signal()
     evidenceRequested = Signal(int, str, int, int)
+    settingsChanged = Signal()
+    settingsSaved = Signal()
 
     def __init__(self, parent: QObject, network: QNetworkAccessManager | None = None):
         super().__init__(parent)
@@ -30,6 +33,76 @@ class AnalysisController(QObject):
         self._report = ()
         self._cache = OrderedDict()
         self._status = "先选择差异范围并预览待发送内容。"
+        self._settings_store = AISettingsStore()
+        self._saved = None
+        self._settings_status = "填写后可保存设置，确认发送时也会自动记住。"
+        try:
+            self._saved = self._settings_store.load()
+            if self._saved is not None:
+                self._settings_status = "已恢复此电脑保存的 AI 设置。"
+        except SettingsError as exc:
+            self._settings_status = str(exc)
+
+    @Property(str, notify=settingsChanged)
+    def savedEndpoint(self) -> str:
+        return self._saved.endpoint if self._saved else ""
+
+    @Property(str, notify=settingsChanged)
+    def savedModel(self) -> str:
+        return self._saved.model if self._saved else ""
+
+    @Property(str, notify=settingsChanged)
+    def savedProvider(self) -> str:
+        return self._saved.provider if self._saved else "auto"
+
+    @Property(bool, notify=settingsChanged)
+    def savedKeyAvailable(self) -> bool:
+        return self._saved is not None
+
+    @Property(str, notify=settingsChanged)
+    def settingsStatus(self) -> str:
+        return self._settings_status
+
+    def _key_for(self, endpoint: str) -> str:
+        return self._saved.api_key if self._saved and self._saved.endpoint == endpoint.strip() else ""
+
+    @Slot(str, str, str, str, result=bool)
+    def saveSettings(self, endpoint: str, model: str, api_key: str, provider: str) -> bool:
+        if self.busy:
+            return False
+        config = AISettings(endpoint.strip(), model.strip(), provider, api_key.strip() or self._key_for(endpoint))
+        try:
+            self._settings_store.save(config)
+        except SettingsError as exc:
+            self._settings_status = str(exc)
+            self.settingsChanged.emit()
+            return False
+        if config != self._saved:
+            self._cache.clear()
+        self._saved = config
+        self._settings_status = "设置已加密保存，下次启动可直接使用。"
+        self.discardPreview()
+        self.settingsChanged.emit()
+        self.settingsSaved.emit()
+        return True
+
+    @Slot(result=bool)
+    def clearSavedSettings(self) -> bool:
+        if self.busy:
+            return False
+        try:
+            self._settings_store.clear()
+        except SettingsError as exc:
+            self._settings_status = str(exc)
+            self.settingsChanged.emit()
+            return False
+        self._saved = None
+        self._cache.clear()
+        self._clear_report()
+        self.discardPreview()
+        self._settings_status = "已清除保存的 AI 设置和分析缓存。"
+        self.settingsChanged.emit()
+        return True
 
     @Property(bool, notify=busyChanged)
     def busy(self) -> bool:
@@ -103,16 +176,21 @@ class AnalysisController(QObject):
             return
         draft, self._draft = self._draft, None
         self._clear_report()
+        api_key = api_key.strip() or self._key_for(draft.endpoint)
+        if not valid_api_key(api_key):
+            self._status = "请输入有效的 API Key，然后重新预览。"
+            self.changed.emit()
+            return
+        config = AISettings(draft.endpoint, draft.model, draft.provider, api_key)
+        if config != self._saved:
+            self._cache.clear()
+            # A storage failure never changes the explicit send authorization.
+            self.saveSettings(draft.endpoint, draft.model, api_key, draft.provider)
         if draft.fingerprint in self._cache:
             self._cache.move_to_end(draft.fingerprint)
             self._report = self._cache[draft.fingerprint]
             self._status = "已使用本次会话缓存。 " + draft.scope.replace("发送", "覆盖", 1)
             self.reportChanged.emit()
-            self.changed.emit()
-            return
-        api_key = api_key.strip()
-        if not api_key or len(api_key) > 4096 or any(not 33 <= ord(c) <= 126 for c in api_key):
-            self._status = "请输入有效的 API Key，然后重新预览。"
             self.changed.emit()
             return
         request = QNetworkRequest(QUrl(draft.endpoint, QUrl.ParsingMode.StrictMode))
