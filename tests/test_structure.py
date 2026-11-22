@@ -143,3 +143,26 @@ def test_unchanged_section_does_not_spend_matching_budget(tmp_path):
     result = compare(left, right)
     assert not result.used_coarse_matching
     assert len(result.changes) == 1
+
+
+def test_academic_heading_paths_preserve_source_and_separate_sections(tmp_path):
+    left, right = snapshots(tmp_path,
+        "Abstract\nOverview\n1 Introduction\nShared text\n2 Methods\n2.1 Dataset\n30 samples\n3 Results\nOld result",
+        "Abstract\nOverview\n1 Introduction\nNew introduction\n2 Methods\n2.1 Dataset\n60 samples\n3 Results\nShared text")
+    assert left.blocks[0].kind == "heading"
+    assert left.blocks[6].section_path == ("2 Methods", "2.1 Dataset")
+    assert left.blocks[6].kind == "paragraph"  # sample counts are not section numbers
+    assert all(left.text[b.span.start:b.span.end] == b.text for b in left.blocks)
+    assert len(compare(left, right).changes) == 3
+
+
+@pytest.mark.parametrize("text", ["3.14", "2026 Results", "1.23 = result", "1 方法。正文", "30 samples", "[1] Smith et al.",
+                                  "5 samples", "10 patients", "20 participants", "3.14 mg", "10 Samples"])
+def test_academic_heading_does_not_capture_data_or_references(text):
+    from doclens.structure import heading
+    assert heading(text) is None
+
+
+def test_small_sample_count_does_not_replace_methods_context(tmp_path):
+    left, _ = snapshots(tmp_path, "2 Methods\n10 samples\nWe use a crossover design.", "")
+    assert left.blocks[2].section_path == ("2 Methods",)

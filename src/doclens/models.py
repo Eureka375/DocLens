@@ -41,6 +41,8 @@ class Change:
     right_location: str
     left_edits: tuple[Span, ...]
     right_edits: tuple[Span, ...]
+    left_word_edits: tuple[Span, ...] = ()
+    right_word_edits: tuple[Span, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

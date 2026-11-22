@@ -2,6 +2,7 @@ from bisect import bisect_left
 from collections import Counter
 from collections.abc import Callable, Iterator, Sequence
 from difflib import SequenceMatcher
+import re
 
 from .documents import no_cancel
 from .models import Change, Comparison, Snapshot, Span
@@ -10,6 +11,20 @@ from .models import Change, Comparison, Snapshot, Span
 BLOCK_PAIR_LIMIT = 240_000
 CHAR_PAIR_LIMIT = 160_000
 Operation = tuple[str, int, int, int, int]
+WORD_TOKEN = re.compile(r"\d+(?:\.\d+)*|[^\W\d_\u3400-\u9fff]+|\s+|.", re.UNICODE)
+
+
+def _word_edits(left: str, right: str, a: int, b: int, check_cancelled):
+    tokens = [[m for m in WORD_TOKEN.finditer(text)] for text in (left, right)]
+    operations, coarse = _operations([m.group() for m in tokens[0]], [m.group() for m in tokens[1]],
+                                      CHAR_PAIR_LIMIT, check_cancelled)
+    edits = [[], []]
+    for _, i, j, k, l in operations:
+        for side, start, end, offset in ((0, i, j, a), (1, k, l, b)):
+            if start < end:
+                edits[side].append(Span(offset + tokens[side][start].start(),
+                                        offset + tokens[side][end - 1].end()))
+    return tuple(edits[0]), tuple(edits[1]), coarse
 
 
 def _operations(left: Sequence[str], right: Sequence[str], pair_limit: int,
@@ -223,8 +238,13 @@ def compare(left: Snapshot, right: Snapshot, check_cancelled: Callable[[], None]
             coarse |= approximate
             left_edits = tuple(Span(a.start + start, a.start + end) for _, start, end, _, _ in edits if start < end)
             right_edits = tuple(Span(b.start + start, b.start + end) for _, _, _, start, end in edits if start < end)
+            left_words, right_words, approximate = _word_edits(
+                left.text[a.start:a.end], right.text[b.start:b.end], a.start, b.start, check_cancelled)
+            coarse |= approximate
         else:
             left_edits = (a,) if a.start < a.end else ()
             right_edits = (b,) if b.start < b.end else ()
-        changes.append(Change(kind, a, b, left_location, right_location, left_edits, right_edits))
+            left_words, right_words = left_edits, right_edits
+        changes.append(Change(kind, a, b, left_location, right_location, left_edits, right_edits,
+                              left_words, right_words))
     return Comparison(tuple(changes), coarse)
