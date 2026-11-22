@@ -1,6 +1,7 @@
 # DocLens Windows 发布包
 
-- V0.5.1 为当前版本，AI解释和状态直接显示在首页左侧分组。[下载ZIP](https://github.com/Eureka375/DocLens/releases/download/v0.5.1/DocLens-V0.5.1-Windows.zip) · [发布说明](v0.5.1/README.md)
+- V0.5.2 为合并两次 PR 后重新构建的 Windows 候选安装版和便携版，含移动并修改、AI 摘录校验及结构化审阅功能。[构建与下载](https://github.com/Eureka375/DocLens/actions/workflows/windows-build.yml) · [版本说明](v0.5.2/README.md)。通过 Windows 构建验收后从成功的 main 工作流 Artifacts 获取，旧版 v0.5.1 Release 不会被覆盖。
+- V0.5.1 为先前发布版本，AI解释和状态直接显示在首页左侧分组。[下载ZIP](https://github.com/Eureka375/DocLens/releases/download/v0.5.1/DocLens-V0.5.1-Windows.zip) · [发布说明](v0.5.1/README.md)
 - V0.5.0 包含审阅清单、核对备注、HTML导出、词级高亮和AI分批覆盖。[下载ZIP](https://github.com/Eureka375/DocLens/releases/download/v0.5.0/DocLens-V0.5.0-Windows.zip) · [发布说明](v0.5.0/README.md)
 - V0.4.2 将AI等待上限放宽至120秒。[下载ZIP](https://github.com/Eureka375/DocLens/releases/download/v0.4.2/DocLens-V0.4.2-Windows.zip) · [发布说明](v0.4.2/README.md)
 - V0.4.1 包含学术比较、AI请求格式配置和加密记住API Key。[下载ZIP](https://github.com/Eureka375/DocLens/releases/download/v0.4.1/DocLens-V0.4.1-Windows.zip) · [发布说明](v0.4.1/README.md)
