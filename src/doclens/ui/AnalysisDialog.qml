@@ -7,6 +7,7 @@ Dialog {
     required property QtObject backend
     required property int changeCount
     required property int activeGroup
+    signal homeRequested()
     anchors.centerIn: parent
     title: "AI 差异分析"
     modal: true
@@ -144,6 +145,12 @@ Dialog {
                 onClicked: analysis.backend.clearCache()
             }
             Button {
+                objectName: "aiHome"
+                text: "首页查看"
+                visible: analysis.backend.busy || analysis.backend.report.length > 0
+                onClicked: { analysis.close(); analysis.homeRequested(); }
+            }
+            Button {
                 text: "取消等待"
                 visible: analysis.backend.busy
                 onClicked: analysis.backend.cancel()
@@ -200,7 +207,7 @@ Dialog {
         Label {
             Layout.fillWidth: true
             visible: analysis.backend.report.length > 0
-            text: "点击证据可回到原文。失败或未覆盖时保留此前解释，请结合本轮状态核对。"
+            text: "结果已同步首页左侧对应分组，关闭此窗口即可查看。失败或未覆盖时保留此前解释，请结合本轮状态核对。"
             color: "#53675f"
             font.pixelSize: 12
         }

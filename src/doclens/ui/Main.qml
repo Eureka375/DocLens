@@ -58,6 +58,26 @@ ApplicationWindow {
         backend: window.analysis
         changeCount: window.controller.changeCount
         activeGroup: Math.max(1, window.controller.changeIndex + 1)
+        onHomeRequested: {
+            if (window.width < 1280) homeReviewDrawer.open();
+            else window.showReview = true;
+        }
+    }
+
+    Drawer {
+        id: homeReviewDrawer
+        objectName: "homeReviewDrawer"
+        parent: Overlay.overlay
+        edge: Qt.LeftEdge
+        width: Math.min(420, window.width - 32)
+        height: window.height
+        modal: false
+        dim: false
+        contentItem: ReviewPane {
+            backend: window.controller
+            listObjectName: "drawerReviewList"
+            onEvidenceOpened: homeReviewDrawer.close()
+        }
     }
 
     FileDialog {
@@ -192,9 +212,13 @@ ApplicationWindow {
             }
             CheckBox {
                 text: "审阅列表"
-                checked: window.showReview
-                enabled: window.width >= 1280
-                onClicked: window.showReview = checked
+                checked: window.width >= 1280 ? window.showReview : homeReviewDrawer.opened
+                onClicked: {
+                    if (window.width < 1280) {
+                        if (homeReviewDrawer.opened) homeReviewDrawer.close();
+                        else homeReviewDrawer.open();
+                    } else window.showReview = checked;
+                }
             }
             CheckBox {
                 objectName: "wordHighlight"
@@ -216,7 +240,7 @@ ApplicationWindow {
             Layout.rightMargin: 20
             spacing: 12
             ReviewPane {
-                Layout.preferredWidth: 285
+                Layout.preferredWidth: 360
                 Layout.fillHeight: true
                 visible: window.controller.changeCount > 0 && window.width >= 1280 && window.showReview
                 backend: window.controller

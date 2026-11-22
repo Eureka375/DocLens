@@ -112,13 +112,13 @@ class CompareController(QObject):
     busyChanged = Signal()
     changeEntriesChanged = Signal()
     reviewChanged = Signal()
+    reviewAnalysisChanged = Signal()
 
     def __init__(self, cache_root=None, analysis_network=None, original_preview=True):
         super().__init__()
         self.workspace = WorkspaceController(self, cache_root)
         self.analysis = AnalysisController(self, analysis_network)
         self.analysis.evidenceRequested.connect(self._jump_evidence)
-        self.analysis.reportChanged.connect(self.reviewChanged.emit)
         self._paths = {"left": None, "right": None}
         self._encodings = {"left": "utf-8", "right": "utf-8"}
         self._thread = None
@@ -139,6 +139,50 @@ class CompareController(QObject):
         self._category_filter = "all"
         self._word_mode = False
         self._snapshots = None
+        self._analysis_signature = None
+        self.analysis.reportChanged.connect(self._sync_review_analysis)
+        self.analysis.changed.connect(self._sync_review_analysis)
+
+    @Slot()
+    def _sync_review_analysis(self):
+        signature = (tuple(sorted(self.analysis.coverage_states.items())), self.analysis.findings_for_export())
+        if signature == self._analysis_signature:
+            return
+        self._analysis_signature = signature
+        self.reviewAnalysisChanged.emit()
+        if self._category_filter != "all":
+            self.reviewChanged.emit()
+
+    @Property("QVariantMap", notify=reviewAnalysisChanged)
+    def reviewAnalysis(self):
+        result = {}
+        if not self._review:
+            return result
+        for index, status in self.analysis.coverage_states.items():
+            if 0 <= index < len(self._changes):
+                result[str(index)] = {"aiStatus": status, "aiFindings": [], "categoryIds": []}
+        for finding_index, finding in enumerate(self.analysis.findings_for_export()):
+            groups = sorted({e.change_index for e in finding.evidence})
+            for group in groups:
+                if not 0 <= group < len(self._changes):
+                    continue
+                entry = result.setdefault(str(group), {"aiStatus": "未分析", "aiFindings": [], "categoryIds": []})
+                if finding.category not in entry["categoryIds"]:
+                    entry["categoryIds"].append(finding.category)
+                entry["aiFindings"].append({
+                    "index": finding_index, "category": CATEGORIES[finding.category],
+                    "summary": finding.summary, "impact": finding.impact,
+                    "groups": [i + 1 for i in groups],
+                    "evidence": [{"index": i, "side": e.side, "id": e.id}
+                                 for i, e in enumerate(finding.evidence) if e.change_index == group],
+                })
+        for entry in result.values():
+            entry["category"] = "、".join(CATEGORIES[c] for c in entry["categoryIds"]) or "未分类"
+        return result
+
+    @Slot(int, int)
+    def openAnalysisEvidence(self, finding_index, evidence_index):
+        self.analysis.openEvidence(finding_index, evidence_index)
 
     @Property(str, constant=True)
     def coverageNotice(self):
@@ -148,18 +192,17 @@ class CompareController(QObject):
     def reviewRows(self):
         if not self._review:
             return []
-        categories = {}
-        for finding in self.analysis.findings_for_export():
-            for evidence in finding.evidence:
-                categories.setdefault(evidence.change_index, set()).add(finding.category)
+        analysis = self.reviewAnalysis
         rows = []
         for row in self._review.rows(*self._review_filter):
-            assigned = categories.get(row["index"], set())
+            entry = analysis.get(str(row["index"]), {"aiStatus": "未分析", "aiFindings": [],
+                                                     "categoryIds": [], "category": "未分类"})
+            assigned = entry["categoryIds"]
             if self._category_filter == "unclassified" and assigned:
                 continue
             if self._category_filter not in ("all", "unclassified") and self._category_filter not in assigned:
                 continue
-            row["category"] = "、".join(CATEGORIES[c] for c in sorted(assigned)) or "未分类"
+            row.update(entry)
             rows.append(row)
         return rows
 

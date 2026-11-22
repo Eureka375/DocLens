@@ -49,6 +49,7 @@ def test_original_pdf_preview_switch_and_navigation(app, tmp_path):
         assert controller.changeCount == 2
         pages = control(window, 'leftPagePreview')
         assert pages.property('visible')
+        controller.jumpToChange(0)
         controller.jumpToChange(1)
         wait_for(lambda: pages.property('contentY') > 0)
         click(window, 'leftTextView')
@@ -878,4 +879,85 @@ def test_review_panel_edits_and_filters_through_real_controls(app):
         click_list_item(window, view, 0, "reviewJump0")
         assert controller.changeIndex == 0
     finally:
+        window.close()
+
+
+def test_home_groups_show_local_ai_findings_status_and_evidence(app):
+    sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
+    service = FixtureNetwork()
+    engine, window, controller = create_window(original_preview=False, analysis_network=service)
+    ai = controller.analysis
+    try:
+        for side, name in (("left", "原版.txt"), ("right", "新版.txt")):
+            controller.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        assert controller.reviewRows[0]["aiStatus"] == "未分析"
+        click(window, "openAnalysis")
+        wait_for(lambda: control(window, "analysisDialog").property("opened"))
+        assert ai.prepare(1, 2, "https://models.example/chat/completions", "fixture-model")
+        ai.approveAndSend("fictional-key")
+        wait_for(lambda: not ai.busy)
+        rows = controller.reviewRows
+        assert rows[0]["aiStatus"] == rows[1]["aiStatus"] == "已解释"
+        assert rows[0]["aiFindings"][0]["summary"] == ai.report[0]["summary"]
+        assert rows[0]["aiFindings"][0]["groups"] == [1, 2]
+        assert [e["side"] for e in rows[1]["aiFindings"][0]["evidence"]] == ["原文", "新版"]
+        assert rows[2]["aiStatus"] == "未分析" and not rows[2]["aiFindings"]
+        click(window, "aiHome")
+        wait_for(lambda: not control(window, "analysisDialog").property("visible"))
+        view = control(window, "reviewList")
+        QTest.qWait(50)
+        click_list_item(window, view, 0, "reviewAiEvidence0_0_1")
+        assert control(window, "rightText").property("selectedText") == "系统应在 3 天内完成登记。"
+        window.setWidth(1100)
+        click(window, "openAnalysis")
+        wait_for(lambda: control(window, "analysisDialog").property("opened"))
+        click(window, "aiHome")
+        drawer = control(window, "homeReviewDrawer")
+        wait_for(lambda: drawer is not None and drawer.property("opened"))
+        drawer_list = drawer.findChild(QObject, "drawerReviewList")
+        QTest.qWait(50)
+        click_list_item(window, drawer_list, 0, "reviewAiEvidence0_0_1")
+        wait_for(lambda: not drawer.property("visible"))
+        assert control(window, "rightText").property("selectedText") == "系统应在 3 天内完成登记。"
+        service.code = 500
+        assert ai.prepare(1, 1, "https://models.example/chat/completions", "replacement-model")
+        ai.approveAndSend("")
+        wait_for(lambda: not ai.busy)
+        assert controller.reviewRows[0]["aiStatus"] == "失败"
+        assert controller.reviewRows[0]["aiFindings"]  # Retained old result must be marked by current status.
+        ai.clearCache()
+        assert not controller.reviewRows[0]["aiFindings"]
+        assert controller.reviewRows[0]["aiStatus"] == "未分析"
+    finally:
+        ai.cancel()
+        window.close()
+
+
+def test_home_ai_updates_do_not_replace_active_note_editor(app):
+    sample = Path(__file__).resolve().parents[1] / "examples" / "跳转测试"
+    service = FixtureNetwork()
+    engine, window, controller = create_window(original_preview=False, analysis_network=service)
+    ai = controller.analysis
+    try:
+        for side, name in (("left", "原版.txt"), ("right", "新版.txt")):
+            controller.selectFile(side, QUrl.fromLocalFile(str(sample / name)))
+        controller.startComparison()
+        wait_for(lambda: not controller.busy)
+        view = control(window, "reviewList")
+        QTest.qWait(50)
+        click_list_item(window, view, 0, "reviewNote0")
+        for character in "draft":
+            QTest.keyClick(window, Qt.Key(ord(character.upper())))
+        assert ai.prepare(1, 1, "https://models.example/chat/completions", "model")
+        ai.approveAndSend("fictional-key")
+        wait_for(lambda: not ai.busy)
+        # No Return or focus change: AI updates must preserve the editor and draft.
+        for character in " note":
+            QTest.keyClick(window, Qt.Key(ord(character.upper())))
+        QTest.keyClick(window, Qt.Key_Return)
+        assert controller.reviewRows[0]["note"] == "draft note"
+    finally:
+        ai.cancel()
         window.close()

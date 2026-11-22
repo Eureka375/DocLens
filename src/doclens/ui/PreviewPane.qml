@@ -26,8 +26,11 @@ ListView {
                 if (marks[j].group !== group) continue;
                 const pageIndex = i;
                 const y = marks[j].y;
+                forceLayout();
                 positionViewAtIndex(pageIndex, ListView.Beginning);
                 Qt.callLater(function() {
+                    if (preview.activeGroup !== group) return;
+                    preview.forceLayout();
                     const item = itemAtIndex(pageIndex);
                     if (item) contentY = Math.max(originY, Math.min(item.y + y * item.paperHeight - height / 3,
                                                   originY + contentHeight - height));
