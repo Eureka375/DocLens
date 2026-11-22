@@ -233,8 +233,11 @@ def parse_analysis(response: bytes, draft: AnalysisDraft) -> tuple[Finding, ...]
             required = {e.id for e in draft.evidence if e.change_index in groups}
             if set(ids) != required:
                 raise ValueError
-            _check_quantitative_direction(category, summary, cited)
             quotes = _validated_quotes(entry, ids, catalog)
+            # Directional verification requires literal quotes. Legacy
+            # citation-only responses remain explicitly unverified.
+            if quotes:
+                _check_quantitative_direction(category, summary, cited)
             verification = ("原文摘录已核对；语义仍需人工判断" if quotes
                             else "仅定位证据ID，需人工核对")
             result.append(Finding(category, summary.strip(), impact.strip(), cited, verification, quotes))
