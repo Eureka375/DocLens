@@ -1,6 +1,12 @@
-# DocLens 0.5.1
+# DocLens 0.6.0
 
 Windows 桌面文档比对工具，支持双栏比对、文件夹关键词检索和关联原文的 AI 差异解释。比对和检索可离线运行。
+
+新增“多文档研究”：本地项目、PDF/DOCX/Markdown/TXT 批量导入、数据集/方法共同项矩阵、证据与章节跳转、关联证据的笔记、Markdown 导出和可重导入 ZIP 离线共享。无需 AI 或 API Key。
+
+[正式需求与验收边界](docs/design/multi-document-mvp.md) · [四格式案例与操作指南](examples/多文档研究/测试指南.md) · [验证报告](docs/validation/multi-document-mvp/验证报告.md) · [0.6.0 交付说明](releases/v0.6.0/README.md)。Windows 便携程序位于 `dist/v0.6.0/DocLens/DocLens.exe`。
+
+规则仅覆盖内置词典，“使用线索”需要阅读原文核对；“未发现”不表示不存在。共享包即使不附原始文件，也包含提取全文、证据和笔记。
 
 ## 项目资料
 

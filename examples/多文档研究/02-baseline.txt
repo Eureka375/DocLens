@@ -1,0 +1,4 @@
+Methods
+We use BERT on CIFAR-10.
+We do not use ResNet.
+We use Random Forest on MNIST.

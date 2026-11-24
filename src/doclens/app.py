@@ -17,6 +17,7 @@ from .diff import compare
 from .documents import DocumentError, read_document
 from .models import Change, Span
 from .workspace_ui import WorkspaceController
+from .research_ui import ResearchController
 from .preview import PreviewError, build_preview
 from .review import COVERAGE_NOTICE, ReviewSession
 
@@ -117,6 +118,7 @@ class CompareController(QObject):
     def __init__(self, cache_root=None, analysis_network=None, original_preview=True):
         super().__init__()
         self.workspace = WorkspaceController(self, cache_root)
+        self.research = ResearchController(self)
         self.analysis = AnalysisController(self, analysis_network)
         self.analysis.evidenceRequested.connect(self._jump_evidence)
         self._paths = {"left": None, "right": None}
@@ -530,7 +532,7 @@ def create_window(*, cache_root=None, analysis_network=None, original_preview=Tr
     controller = CompareController(cache_root, analysis_network, original_preview)
     engine = QQmlApplicationEngine()
     engine.setInitialProperties({"controller": controller, "workspace": controller.workspace,
-                                 "analysis": controller.analysis})
+                                 "analysis": controller.analysis, "research": controller.research})
     engine.load(QUrl.fromLocalFile(str(Path(__file__).with_name("ui") / "Main.qml")))
     if not engine.rootObjects():
         raise RuntimeError("DocLens could not load its QML window")

@@ -28,7 +28,7 @@ MAX_TEXT_LENGTH = 100_000
 MAX_PDF_PAGES = 300
 MAX_PDF_STREAM_BYTES = 4 * 1024 * 1024
 MAX_PDF_CONTENT_BYTES = 16 * 1024 * 1024
-SUPPORTED_EXTENSIONS = frozenset((".txt", ".docx", ".pdf"))
+SUPPORTED_EXTENSIONS = frozenset((".txt", ".docx", ".pdf", ".md", ".markdown"))
 WORD_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 MATH_NS = "{http://schemas.openxmlformats.org/officeDocument/2006/math}"
 REVISION_TAGS = {
@@ -266,7 +266,7 @@ def _pdf_blocks(data: bytes, check_cancelled: Callable[[], None]) -> tuple[list[
 def read_document(path: Path, encoding: str = "utf-8", check_cancelled: Callable[[], None] = no_cancel) -> Snapshot:
     path = Path(path)
     if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-        raise DocumentError("unsupported", "请选择 TXT、DOCX 或 PDF 文件。")
+        raise DocumentError("unsupported", "请选择 TXT、Markdown、DOCX 或 PDF 文件。")
     check_cancelled()
     return parse_snapshot(path, read_document_bytes(path), encoding, check_cancelled)
 
@@ -279,7 +279,7 @@ def parse_snapshot(path: Path, data: bytes, encoding: str, check_cancelled: Call
         rows, warnings = _docx_blocks(data, check_cancelled)
     elif suffix == ".pdf":
         rows, warnings = _pdf_blocks(data, check_cancelled)
-    elif suffix == ".txt":
+    elif suffix in (".txt", ".md", ".markdown"):
         if encoding not in ("utf-8", "gb18030"):
             raise ValueError(f"Unsupported TXT encoding: {encoding}")
         try:
@@ -293,7 +293,7 @@ def parse_snapshot(path: Path, data: bytes, encoding: str, check_cancelled: Call
         rows = [TextBlock(line, Span(0, 0), f"第 {i} 行")
                 for i, line in enumerate(text.split("\n"), 1)] if text else []
     else:
-        raise DocumentError("unsupported", "请选择 TXT、DOCX 或 PDF 文件。")
+        raise DocumentError("unsupported", "请选择 TXT、Markdown、DOCX 或 PDF 文件。")
     blocks = []
     cursor = 0
     for block in rows:

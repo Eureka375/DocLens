@@ -8,6 +8,7 @@ ApplicationWindow {
     required property QtObject controller
     required property QtObject workspace
     required property QtObject analysis
+    required property QtObject research
     width: 1440
     height: 840
     minimumWidth: 760
@@ -32,10 +33,23 @@ ApplicationWindow {
             controller.cancel();
             workspace.cancel();
             analysis.cancel();
+        } else if (research.dirty && !discardResearchOnClose) {
+            event.accepted = false;
+            closeResearchConfirm.open();
         }
     }
+    property bool discardResearchOnClose: false
+    Dialog {
+        id: closeResearchConfirm
+        parent: Overlay.overlay
+        title: "多文档项目有未保存修改，仍要退出？"
+        modal: true
+        standardButtons: Dialog.Yes | Dialog.Cancel
+        onAccepted: { window.discardResearchOnClose = true; window.close(); }
+        onRejected: researchDialog.open()
+    }
     property bool closeWhenIdle: false
-    readonly property bool workInProgress: controller.busy || workspace.busy || analysis.busy
+    readonly property bool workInProgress: controller.busy || workspace.busy || analysis.busy || research.busy
     onWorkInProgressChanged: {
         if (closeWhenIdle && !workInProgress)
             Qt.callLater(window.close);
@@ -48,6 +62,14 @@ ApplicationWindow {
         width: Math.min(window.width - 36, 1040)
         height: Math.min(window.height - 36, 680)
         backend: window.workspace
+    }
+    ResearchDialog {
+        id: researchDialog
+        objectName: "researchDialog"
+        parent: Overlay.overlay
+        width: Math.max(720, window.width - 36)
+        height: window.height - 36
+        backend: window.research
     }
     AnalysisDialog {
         id: analysisDialog
@@ -93,7 +115,7 @@ ApplicationWindow {
         id: picker
         property string side: "left"
         title: side === "left" ? "选择原文档" : "选择新版文档"
-        nameFilters: ["文档 (*.txt *.docx *.pdf *.TXT *.DOCX *.PDF)"]
+        nameFilters: ["文档 (*.txt *.md *.markdown *.docx *.pdf *.TXT *.MD *.DOCX *.PDF)"]
         onAccepted: window.controller.selectFile(side, selectedFile)
     }
 
@@ -121,6 +143,11 @@ ApplicationWindow {
                     Label { text: "本地文档比对"; color: "#c8ded5"; font.pixelSize: 12 }
                 }
                 Item { Layout.fillWidth: true }
+                Button {
+                    objectName: "openResearch"
+                    text: "多文档研究"
+                    onClicked: researchDialog.open()
+                }
                 Button {
                     objectName: "openWorkspace"
                     text: "文件夹检索"
