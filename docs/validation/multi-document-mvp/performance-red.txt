@@ -1,0 +1,30 @@
+............F                                                            [100%]
+================================== FAILURES ===================================
+______ test_long_paragraph_classification_scans_each_clause_once[body1] _______
+
+tmp_path = WindowsPath('D:/WpSystem/S-1-5-21-346197313-909412697-1684417333-1001/AppData/Local/Packages/OpenAI.Codex_2p2nqsd0c76g0/AC/#!sandbox.{5fa192ec-35af-4b7b-ba5d-08c770884804}/Temp/pytest-of-Lenovo/pytest-0/test_long_paragraph_classifica1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001BB8BA8AD50>
+body = 'BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BE...RT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT BERT '
+
+    @pytest.mark.parametrize('body', ['We use BERT. ' * 1500, 'BERT ' * 1500])
+    def test_long_paragraph_classification_scans_each_clause_once(tmp_path, monkeypatch, body):
+        import doclens.research as research
+        f = tmp_path / 'long.txt'
+        f.write_text(body, encoding='utf-8')
+        p = ResearchProject()
+        p.import_files([f])
+        original = research._state
+        scanned = []
+        def count(text, *args):
+            scanned.append(len(text))
+            return original(text, *args)
+        monkeypatch.setattr(research, '_state', count)
+        assert len(p.evidence()) == 1500
+>       assert max(scanned) <= 350
+E       assert 7500 <= 350
+E        +  where 7500 = max([7500, 7500, 7500, 7500, 7500, 7500, ...])
+
+tests\test_research.py:145: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_research.py::test_long_paragraph_classification_scans_each_clause_once[body1]
+1 failed, 12 passed in 2.04s

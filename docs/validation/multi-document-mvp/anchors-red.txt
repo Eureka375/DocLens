@@ -1,0 +1,24 @@
+.............F                                                           [100%]
+================================== FAILURES ===================================
+____________ test_multiword_entity_anchors_are_valid_markdown_urls ____________
+
+tmp_path = WindowsPath('D:/WpSystem/S-1-5-21-346197313-909412697-1684417333-1001/AppData/Local/Packages/OpenAI.Codex_2p2nqsd0c76g0/AC/#!sandbox.{cb3e0c30-079c-42c4-bdc5-ae1f1849efff}/Temp/pytest-of-Lenovo/pytest-0/test_multiword_entity_anchors_0')
+
+    def test_multiword_entity_anchors_are_valid_markdown_urls(tmp_path):
+        f = tmp_path / 'random.txt'
+        f.write_text('We use Random Forest.', encoding='utf-8')
+        p = ResearchProject()
+        p.import_files([f])
+        e = p.evidence()[0]
+        p.save_note('', 'Check method', e['id'])
+>       assert ' ' not in e['id']
+E       AssertionError: assert ' ' not in '1204abb338c...andom Forest'
+E         
+E         ' ' is contained here:
+E           -20-Random Forest
+E         ?           +
+
+tests\test_research.py:155: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_research.py::test_multiword_entity_anchors_are_valid_markdown_urls
+1 failed, 13 passed in 1.19s

@@ -12,7 +12,7 @@ Windows 桌面文档比对工具，支持双栏比对、文件夹关键词检索
 
 - 技术方案和早期验证资料保存在项目的本地归档中。
 - [PDF 与段落移动样例](examples/PDF比对/测试指南.md)、[跳转样例](examples/跳转测试/)和 [进阶案例指南](examples/进阶测试案例/测试指南.txt)位于 `examples/`。
-- [Windows 发布包](releases/README.md)按版本保存。当前便携版位于 `dist/v0.5.1/DocLens/`，可运行该目录中的 `DocLens.exe`。
+- [Windows 发布包](releases/README.md)按版本保存。当前本地便携版位于 `dist/v0.6.0/DocLens/`，可运行该目录中的 `DocLens.exe`。
 - 各版本便携包和SHA-256校验文件也提供在 [GitHub Releases](https://github.com/Eureka375/DocLens/releases)，ZIP作为下载附件保存，不加入Git历史。
 - V0.5.1 将AI状态、变化解释、可能影响与证据按钮直接显示到首页左侧对应分组，长内容可展开。[发布说明](releases/v0.5.1/README.md)
 - V0.5.0 增加审阅列表、核对状态/备注、完整HTML报告和AI分批覆盖检查。[设计](docs/design/2026-11-22-review-workflow.md) · [发布说明](releases/v0.5.0/README.md)

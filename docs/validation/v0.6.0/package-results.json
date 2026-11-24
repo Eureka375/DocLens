@@ -1,0 +1,42 @@
+{
+  "version": "0.6.0",
+  "zip": "releases/v0.6.0/DocLens-V0.6.0-Windows.zip",
+  "bytes": 81390111,
+  "sha256": "885b11456985df75512a6f6e187758a79b486f55d4ed27e9239ea654c281abd9",
+  "zip_crc_verified": true,
+  "structured_module_bundled": true,
+  "environment": "Windows-only PATH; Python env vars removed",
+  "checks": [
+    {
+      "case": "structured TXT",
+      "visible_window": true,
+      "exit_code": 0
+    },
+    {
+      "case": "PDF",
+      "visible_window": true,
+      "exit_code": 0
+    },
+    {
+      "case": "research UI",
+      "visible_window": true,
+      "exit_code": 0
+    },
+    {
+      "case": "academic TXT",
+      "visible_window": true,
+      "exit_code": 0
+    }
+  ],
+  "ai_modules_bundled": true,
+  "settings_controls_bundled": true,
+  "user_settings_excluded": true,
+  "request_timeout_ms": 120000,
+  "review_module_bundled": true,
+  "review_and_coverage_controls_bundled": true,
+  "home_ai_controls_bundled": true,
+  "research_modules_bundled": true,
+  "frozen_research_code_corpus_checked": true,
+  "research_entry_clicked": true,
+  "research_window_screenshot": "docs/validation/multi-document-mvp/frozen-research-window.png"
+}

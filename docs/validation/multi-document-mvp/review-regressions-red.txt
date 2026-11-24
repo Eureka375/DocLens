@@ -1,0 +1,152 @@
+.....FF.FFFF                                                             [100%]
+================================== FAILURES ===================================
+_ test_usage_is_scoped_to_entity_clause[We use BERT and do not use CNN.-expected0] _
+
+tmp_path = WindowsPath('D:/WpSystem/S-1-5-21-346197313-909412697-1684417333-1001/AppData/Local/Packages/OpenAI.Codex_2p2nqsd0c76g0/AC/#!sandbox.{fd8e5066-d1d6-4a21-8408-f55bab174812}/Temp/pytest-of-Lenovo/pytest-0/test_usage_is_scoped_to_entity0')
+text = 'We use BERT and do not use CNN.', expected = ['ʹ������', '��ʹ��']
+
+    @pytest.mark.parametrize('text,expected', [
+        ('We use BERT and do not use CNN.', ['ʹ������', '��ʹ��']),
+        ('We use BERT and mention CNN.', ['ʹ������', '���ἰ����˶�']),
+        ('We use BERT, while prior work uses CNN.', ['ʹ������', '���ἰ����˶�']),
+        ('We use BERT not CNN.', ['ʹ������', '��ʹ��']),
+    ])
+    def test_usage_is_scoped_to_entity_clause(tmp_path, text, expected):
+        f = tmp_path / 'scope.txt'
+        f.write_text(text, encoding='utf-8')
+        p = ResearchProject()
+        p.import_files([f])
+        states = {e['term']: e['state'] for e in p.evidence()}
+>       assert [states['BERT'], states['CNN']] == expected
+E       AssertionError: assert ['��ʹ��', '��ʹ��'] == ['ʹ������', '��ʹ��']
+E         
+E         At index 0 diff: '��ʹ��' != 'ʹ������'
+E         Use -v to get more diff
+
+tests\test_research.py:105: AssertionError
+_ test_usage_is_scoped_to_entity_clause[We use BERT and mention CNN.-expected1] _
+
+tmp_path = WindowsPath('D:/WpSystem/S-1-5-21-346197313-909412697-1684417333-1001/AppData/Local/Packages/OpenAI.Codex_2p2nqsd0c76g0/AC/#!sandbox.{fd8e5066-d1d6-4a21-8408-f55bab174812}/Temp/pytest-of-Lenovo/pytest-0/test_usage_is_scoped_to_entity1')
+text = 'We use BERT and mention CNN.', expected = ['ʹ������', '���ἰ����˶�']
+
+    @pytest.mark.parametrize('text,expected', [
+        ('We use BERT and do not use CNN.', ['ʹ������', '��ʹ��']),
+        ('We use BERT and mention CNN.', ['ʹ������', '���ἰ����˶�']),
+        ('We use BERT, while prior work uses CNN.', ['ʹ������', '���ἰ����˶�']),
+        ('We use BERT not CNN.', ['ʹ������', '��ʹ��']),
+    ])
+    def test_usage_is_scoped_to_entity_clause(tmp_path, text, expected):
+        f = tmp_path / 'scope.txt'
+        f.write_text(text, encoding='utf-8')
+        p = ResearchProject()
+        p.import_files([f])
+        states = {e['term']: e['state'] for e in p.evidence()}
+>       assert [states['BERT'], states['CNN']] == expected
+E       AssertionError: assert ['ʹ������', 'ʹ������'] == ['ʹ������', '���ἰ����˶�']
+E         
+E         At index 1 diff: 'ʹ������' != '���ἰ����˶�'
+E         Use -v to get more diff
+
+tests\test_research.py:105: AssertionError
+____ test_usage_is_scoped_to_entity_clause[We use BERT not CNN.-expected3] ____
+
+tmp_path = WindowsPath('D:/WpSystem/S-1-5-21-346197313-909412697-1684417333-1001/AppData/Local/Packages/OpenAI.Codex_2p2nqsd0c76g0/AC/#!sandbox.{fd8e5066-d1d6-4a21-8408-f55bab174812}/Temp/pytest-of-Lenovo/pytest-0/test_usage_is_scoped_to_entity3')
+text = 'We use BERT not CNN.', expected = ['ʹ������', '��ʹ��']
+
+    @pytest.mark.parametrize('text,expected', [
+        ('We use BERT and do not use CNN.', ['ʹ������', '��ʹ��']),
+        ('We use BERT and mention CNN.', ['ʹ������', '���ἰ����˶�']),
+        ('We use BERT, while prior work uses CNN.', ['ʹ������', '���ἰ����˶�']),
+        ('We use BERT not CNN.', ['ʹ������', '��ʹ��']),
+    ])
+    def test_usage_is_scoped_to_entity_clause(tmp_path, text, expected):
+        f = tmp_path / 'scope.txt'
+        f.write_text(text, encoding='utf-8')
+        p = ResearchProject()
+        p.import_files([f])
+        states = {e['term']: e['state'] for e in p.evidence()}
+>       assert [states['BERT'], states['CNN']] == expected
+E       AssertionError: assert ['ʹ������', 'ʹ������'] == ['ʹ������', '��ʹ��']
+E         
+E         At index 1 diff: 'ʹ������' != '��ʹ��'
+E         Use -v to get more diff
+
+tests\test_research.py:105: AssertionError
+_______________ test_export_enforces_import_uncompressed_limit ________________
+
+tmp_path = WindowsPath('D:/WpSystem/S-1-5-21-346197313-909412697-1684417333-1001/AppData/Local/Packages/OpenAI.Codex_2p2nqsd0c76g0/AC/#!sandbox.{fd8e5066-d1d6-4a21-8408-f55bab174812}/Temp/pytest-of-Lenovo/pytest-0/test_export_enforces_import_un0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001E200D090F0>
+
+    def test_export_enforces_import_uncompressed_limit(tmp_path, monkeypatch):
+        import doclens.research as research
+        p = ResearchProject()
+        p.import_files(corpus(tmp_path))
+        monkeypatch.setattr(research, 'LIMIT', len(p._data()) + 50)
+        target = tmp_path / 'too-large.zip'
+>       with pytest.raises(ValueError, match='����'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests\test_research.py:114: Failed
+__________________ test_reimport_recovers_missing_originals ___________________
+
+tmp_path = WindowsPath('D:/WpSystem/S-1-5-21-346197313-909412697-1684417333-1001/AppData/Local/Packages/OpenAI.Codex_2p2nqsd0c76g0/AC/#!sandbox.{fd8e5066-d1d6-4a21-8408-f55bab174812}/Temp/pytest-of-Lenovo/pytest-0/test_reimport_recovers_missing0')
+
+    def test_reimport_recovers_missing_originals(tmp_path):
+        p = ResearchProject()
+        paths = corpus(tmp_path)
+        p.import_files(paths)
+        bundle = tmp_path / 'without.zip'
+        p.export_bundle(bundle)
+        shared = ResearchProject.load(bundle)
+        shared.import_files(paths)
+>       shared.export_bundle(tmp_path / 'with.zip', True)
+
+tests\test_research.py:127: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <doclens.research.ResearchProject object at 0x000001E200D64350>
+path = WindowsPath('D:/WpSystem/S-1-5-21-346197313-909412697-1684417333-1001/AppData/Local/Packages/OpenAI.Codex_2p2nqsd0c76g...andbox.{fd8e5066-d1d6-4a21-8408-f55bab174812}/Temp/pytest-of-Lenovo/pytest-0/test_reimport_recovers_missing0/with.zip')
+include_originals = True
+
+    def export_bundle(self, path, include_originals=False):
+        from io import BytesIO
+        if include_originals and len(self.originals) != len(self.documents):
+>           raise ValueError('����ԭ�Ĳ����ã������µ���ԭ�Ļ�ȡ������ԭ�ġ�')
+E           ValueError: ����ԭ�Ĳ����ã������µ���ԭ�Ļ�ȡ������ԭ�ġ�
+
+src\doclens\research.py:271: ValueError
+__________ test_long_paragraph_classification_scans_each_clause_once __________
+
+tmp_path = WindowsPath('D:/WpSystem/S-1-5-21-346197313-909412697-1684417333-1001/AppData/Local/Packages/OpenAI.Codex_2p2nqsd0c76g0/AC/#!sandbox.{fd8e5066-d1d6-4a21-8408-f55bab174812}/Temp/pytest-of-Lenovo/pytest-0/test_long_paragraph_classifica0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001E200D09940>
+
+    def test_long_paragraph_classification_scans_each_clause_once(tmp_path, monkeypatch):
+        import doclens.research as research
+        f = tmp_path / 'long.txt'
+        f.write_text('We use BERT. ' * 1500, encoding='utf-8')
+        p = ResearchProject()
+        p.import_files([f])
+        original = research._state
+        scanned = []
+        def count(text, *args):
+            scanned.append(len(text))
+            return original(text, *args)
+        monkeypatch.setattr(research, '_state', count)
+        assert len(p.evidence()) == 1500
+>       assert sum(scanned) < len(f.read_text()) * 2
+E       AssertionError: assert 29250000 < (19500 * 2)
+E        +  where 29250000 = sum([19500, 19500, 19500, 19500, 19500, 19500, ...])
+E        +  and   19500 = len('We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. ... We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. ')
+E        +    where 'We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. ... We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. We use BERT. ' = read_text()
+E        +      where read_text = WindowsPath('D:/WpSystem/S-1-5-21-346197313-909412697-1684417333-1001/AppData/Local/Packages/OpenAI.Codex_2p2nqsd0c76g...andbox.{fd8e5066-d1d6-4a21-8408-f55bab174812}/Temp/pytest-of-Lenovo/pytest-0/test_long_paragraph_classifica0/long.txt').read_text
+
+tests\test_research.py:144: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_research.py::test_usage_is_scoped_to_entity_clause[We use BERT and do not use CNN.-expected0]
+FAILED tests/test_research.py::test_usage_is_scoped_to_entity_clause[We use BERT and mention CNN.-expected1]
+FAILED tests/test_research.py::test_usage_is_scoped_to_entity_clause[We use BERT not CNN.-expected3]
+FAILED tests/test_research.py::test_export_enforces_import_uncompressed_limit
+FAILED tests/test_research.py::test_reimport_recovers_missing_originals - Val...
+FAILED tests/test_research.py::test_long_paragraph_classification_scans_each_clause_once
+6 failed, 6 passed in 4.96s

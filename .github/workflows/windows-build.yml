@@ -1,4 +1,4 @@
-name: Windows build v0.5.2
+name: Windows build v0.6.0
 on:
   push:
     branches: [main]
@@ -31,13 +31,13 @@ jobs:
         run: |
           ./scripts/package.ps1 -OutputDirectory dist
           if (-not (Test-Path 'dist/DocLens/DocLens.exe')) { throw "Missing DocLens.exe" }
-          New-Item -ItemType Directory -Path 'dist/v0.5.2' -Force | Out-Null
-          Copy-Item -LiteralPath 'dist/DocLens' -Destination 'dist/v0.5.2/DocLens' -Recurse -Force
-          if (-not (Test-Path 'dist/v0.5.2/DocLens/DocLens.exe')) { throw "Missing versioned EXE" }
+          New-Item -ItemType Directory -Path 'dist/v0.6.0' -Force | Out-Null
+          Copy-Item -LiteralPath 'dist/DocLens' -Destination 'dist/v0.6.0/DocLens' -Recurse -Force
+          if (-not (Test-Path 'dist/v0.6.0/DocLens/DocLens.exe')) { throw "Missing versioned EXE" }
       - name: Verify portable archive and GUI interactions
         shell: pwsh
         run: |
-          & .venv/Scripts/python.exe scripts/verify_windows_release.py 0.5.2
+          & .venv/Scripts/python.exe scripts/verify_windows_release.py 0.6.0
           if ($LASTEXITCODE -ne 0) { throw "Portable verification failed" }
       - name: Build Windows installer with Inno Setup
         shell: pwsh
@@ -51,11 +51,11 @@ jobs:
           }
           & $compiler 'scripts/DocLens.iss'
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
-          if (-not (Test-Path 'dist/DocLens-Setup-0.5.2-x64.exe')) { throw "Installer missing" }
+          if (-not (Test-Path 'dist/DocLens-Setup-0.6.0-x64.exe')) { throw "Installer missing" }
       - name: Verify silent installation and startup
         shell: pwsh
         run: |
-          $installer = (Resolve-Path 'dist/DocLens-Setup-0.5.2-x64.exe').Path
+          $installer = (Resolve-Path 'dist/DocLens-Setup-0.6.0-x64.exe').Path
           $target = Join-Path $env:RUNNER_TEMP 'DocLens052-InstallationSmoke'
           $installArgs = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="' + $target + '"'))
           $setup = Start-Process -FilePath $installer -ArgumentList $installArgs -Wait -PassThru
@@ -73,14 +73,14 @@ jobs:
       - name: Record build commit and SHA256 checksums
         shell: pwsh
         run: |
-          $files = @('dist/DocLens-Setup-0.5.2-x64.exe','releases/v0.5.2/DocLens-V0.5.2-Windows.zip')
+          $files = @('dist/DocLens-Setup-0.6.0-x64.exe','releases/v0.6.0/DocLens-V0.6.0-Windows.zip')
           $checksums = foreach ($file in $files) {
             $hash = Get-FileHash -LiteralPath $file -Algorithm SHA256
             "$($hash.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($file))"
           }
           $checksums | Set-Content 'dist/SHA256SUMS.txt' -Encoding ascii
           $sha = git rev-parse HEAD
-          @("DocLens v0.5.2 Windows x64", "Commit: $sha", "Ref: $env:GITHUB_REF",
+          @("DocLens v0.6.0 Windows x64", "Commit: $sha", "Ref: $env:GITHUB_REF",
             "Tests: pytest, portable GUI and zip verification, silent setup install and startup",
             "Build: Python 3.13 / PyInstaller 6.22.3 / Inno Setup 6; unsigned") |
             Set-Content 'dist/BUILD_INFO.txt' -Encoding utf8
@@ -88,12 +88,12 @@ jobs:
       - name: Upload verified Windows installer and portable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: DocLens-v0.5.2-Windows-x64
+          name: DocLens-v0.6.0-Windows-x64
           path: |
-            dist/DocLens-Setup-0.5.2-x64.exe
-            releases/v0.5.2/DocLens-V0.5.2-Windows.zip
-            releases/v0.5.2/DocLens-V0.5.2-Windows.zip.sha256
-            docs/validation/v0.5.2/package-results.json
+            dist/DocLens-Setup-0.6.0-x64.exe
+            releases/v0.6.0/DocLens-V0.6.0-Windows.zip
+            releases/v0.6.0/DocLens-V0.6.0-Windows.zip.sha256
+            docs/validation/v0.6.0/package-results.json
             dist/SHA256SUMS.txt
             dist/BUILD_INFO.txt
           if-no-files-found: error

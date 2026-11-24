@@ -3,6 +3,11 @@ param(
 )
 
 $project = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$resolvedOutput = [IO.Path]::GetFullPath((Join-Path $project $OutputDirectory))
+$allowedOutput = [IO.Path]::GetFullPath((Join-Path $project 'dist'))
+if ($resolvedOutput -ne $allowedOutput -and -not $resolvedOutput.StartsWith($allowedOutput + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Build output must stay inside the project dist directory.'
+}
 $python = Join-Path $project ".venv/Scripts/python.exe"
 $previousPath = $env:PATH
 $previousConfigDir = $env:PYINSTALLER_CONFIG_DIR
@@ -14,7 +19,7 @@ try {
     $base = & $python -I -c "import sys; print(sys.base_prefix)"
     if ($LASTEXITCODE -ne 0) { throw "Could not inspect the project Python environment." }
     $buildArguments = @(
-        "-I", "-m", "PyInstaller", "--clean", "--onedir", "--windowed",
+        "-I", "-m", "PyInstaller", "--clean", "--noconfirm", "--onedir", "--windowed",
         "--name", "DocLens", "--distpath", $OutputDirectory,
         "--copy-metadata", "pypdfium2", "--copy-metadata", "pillow",
         "--workpath", "build/pyinstaller", "--specpath", "build",

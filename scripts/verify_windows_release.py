@@ -11,6 +11,49 @@ import subprocess
 import time
 import zipfile
 
+ctypes.windll.user32.SetProcessDPIAware()
+
+
+def capture_client(hwnd, width, height):
+    """Capture only the target HWND; unrelated foreground windows must not enter evidence."""
+    from PIL import Image
+    user = ctypes.windll.user32
+    gdi = ctypes.windll.gdi32
+    user.GetDC.argtypes = (wintypes.HWND,)
+    user.GetDC.restype = wintypes.HDC
+    user.ReleaseDC.argtypes = (wintypes.HWND, wintypes.HDC)
+    user.PrintWindow.argtypes = (wintypes.HWND, wintypes.HDC, wintypes.UINT)
+    gdi.CreateCompatibleDC.argtypes = (wintypes.HDC,)
+    gdi.CreateCompatibleDC.restype = wintypes.HDC
+    gdi.CreateCompatibleBitmap.argtypes = (wintypes.HDC, ctypes.c_int, ctypes.c_int)
+    gdi.CreateCompatibleBitmap.restype = wintypes.HBITMAP
+    gdi.SelectObject.argtypes = (wintypes.HDC, wintypes.HGDIOBJ)
+    gdi.SelectObject.restype = wintypes.HGDIOBJ
+    gdi.DeleteObject.argtypes = (wintypes.HGDIOBJ,)
+    gdi.DeleteDC.argtypes = (wintypes.HDC,)
+    gdi.GetDIBits.argtypes = (wintypes.HDC, wintypes.HBITMAP, wintypes.UINT, wintypes.UINT,
+                            ctypes.c_void_p, ctypes.c_void_p, wintypes.UINT)
+    class Header(ctypes.Structure):
+        _fields_ = [('size', wintypes.DWORD), ('width', wintypes.LONG), ('height', wintypes.LONG),
+                   ('planes', wintypes.WORD), ('bits', wintypes.WORD), ('compression', wintypes.DWORD),
+                   ('image_size', wintypes.DWORD), ('x', wintypes.LONG), ('y', wintypes.LONG),
+                   ('used', wintypes.DWORD), ('important', wintypes.DWORD)]
+    dc = user.GetDC(hwnd)
+    memory = gdi.CreateCompatibleDC(dc)
+    bitmap = gdi.CreateCompatibleBitmap(dc, width, height)
+    previous = gdi.SelectObject(memory, bitmap)
+    try:
+        assert user.PrintWindow(hwnd, memory, 3), 'Could not capture app client'
+        gdi.SelectObject(memory, previous)
+        header = Header(ctypes.sizeof(Header), width, -height, 1, 32, 0, 0, 0, 0, 0, 0)
+        buffer = ctypes.create_string_buffer(width * height * 4)
+        assert gdi.GetDIBits(memory, bitmap, 0, height, buffer, ctypes.byref(header), 0)
+        return Image.frombytes('RGB', (width, height), buffer.raw, 'raw', 'BGRX')
+    finally:
+        gdi.DeleteObject(bitmap)
+        gdi.DeleteDC(memory)
+        user.ReleaseDC(hwnd, dc)
+
 
 parser = argparse.ArgumentParser(description="Verify and archive a built Windows bundle")
 parser.add_argument("version", help="Three-part version, for example 0.3.1")
@@ -23,6 +66,7 @@ smart_analysis = tuple(map(int, version.split("."))) >= (0, 4, 1)
 extended_timeout = tuple(map(int, version.split("."))) >= (0, 4, 2)
 review_workflow = tuple(map(int, version.split("."))) >= (0, 5, 0)
 home_ai = tuple(map(int, version.split("."))) >= (0, 5, 1)
+research_mvp = tuple(map(int, version.split("."))) >= (0, 6, 0)
 root = Path(__file__).resolve().parents[1]
 dist = root / "dist" / f"v{version}"
 bundle = dist / "DocLens"
@@ -33,6 +77,8 @@ if not (bundle / "DocLens.exe").is_file():
 release.mkdir(parents=True, exist_ok=True)
 for name in ("PDF比对", "结构化比对"):
     shutil.copytree(root / "examples" / name, bundle / "示例" / name, dirs_exist_ok=True)
+if research_mvp:
+    shutil.copytree(root / 'examples' / '多文档研究', bundle / '示例' / '多文档研究', dirs_exist_ok=True)
 if smart_analysis:
     shutil.copytree(root / "examples" / "学术比较", bundle / "示例" / "学术比较", dirs_exist_ok=True)
 if args.with_word:
@@ -50,6 +96,23 @@ if args.with_word:
 from PyInstaller.archive.readers import CArchiveReader
 embedded = CArchiveReader(str(bundle / "DocLens.exe")).open_embedded_archive("PYZ.pyz")
 assert "doclens.structure" in embedded.toc, "Structured parser missing from frozen application"
+if research_mvp:
+    assert 'doclens.research' in embedded.toc and 'doclens.research_ui' in embedded.toc
+    assert (bundle / '_internal/doclens/ui/ResearchDialog.qml').is_file()
+    import types
+    frozen_research = types.ModuleType('doclens.research_frozen_validation')
+    frozen_research.__package__ = 'doclens'
+    exec(embedded.extract('doclens.research'), frozen_research.__dict__)
+    frozen_project = frozen_research.ResearchProject.load(bundle / '示例/多文档研究/demo-project.json')
+    assert len(frozen_project.documents) == 4
+    bert_row = next(r for r in frozen_project.matrix() if r['term'] == 'BERT')
+    assert all(c['state'] == '使用线索' for c in bert_row['cells'])
+    assert not any(' ' in e['id'] for e in frozen_project.evidence()), 'Evidence URL anchors contain spaces'
+    shutil.copyfile(root / 'docs/design/multi-document-mvp.md', bundle / '需求文档.md')
+    with (bundle / '使用说明.md').open('a', encoding='utf-8') as guide:
+        guide.write('\nV0.6.0：点击顶部“多文档研究”，打开 示例/多文档研究/demo-project.json 或批量导入四份案例。\n'
+                    '项目、矩阵、证据笔记和共享可离线使用；使用线索需核对，未发现不代表不存在。\n'
+                    '共享包不附原始文件时仍含提取正文、证据和笔记。详见 示例/多文档研究/测试指南.md。\n')
 if smart_analysis:
     for module in ("doclens.analysis", "doclens.analysis_ui", "doclens.providers", "doclens.settings"):
         assert module in embedded.toc, f"AI module missing: {module}"
@@ -126,6 +189,8 @@ cases = [
     ("structured TXT", [str(verified_bundle / "示例" / "结构化比对" / name) for name in ("原版.txt", "新版.txt")]),
     ("PDF", [str(verified_bundle / "示例" / "PDF比对" / name) for name in ("原版.pdf", "新版.pdf")]),
 ]
+if research_mvp:
+    cases.append(('research UI', []))
 if smart_analysis:
     cases.append(("academic TXT", [str(verified_bundle / "示例" / "学术比较" / name)
                                     for name in ("原稿.txt", "修订稿.txt")]))
@@ -156,6 +221,34 @@ for label, documents in cases:
             assert windows_found, f"DocLens window missing (process exit {process.poll()})"
             time.sleep(18 if label == 'Word DOCX' else 1)
             assert process.poll() is None
+            if label == 'research UI':
+                # Click the delivered QML entry, then verify a modal dialog opens by
+                # comparing the client pixels before/after. No source interpreter.
+                from PIL import ImageChops
+                user32.SetForegroundWindow.argtypes = (wintypes.HWND,)
+                user32.GetClientRect.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.RECT))
+                user32.ClientToScreen.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.POINT))
+                rect = wintypes.RECT()
+                assert user32.GetClientRect(windows_found[0], ctypes.byref(rect))
+                origin = wintypes.POINT(0, 0)
+                assert user32.ClientToScreen(windows_found[0], ctypes.byref(origin))
+                user32.SetForegroundWindow(windows_found[0])
+                time.sleep(0.5)
+                before = capture_client(windows_found[0], rect.right, rect.bottom)
+                # QML header is right aligned; source validation records its center.
+                point = json.loads((root / 'docs/validation/multi-document-mvp/research-button-position.json').read_text())
+                # QML logical width is 1440; native width accounts for desktop scaling.
+                x, y = round(point['x'] * rect.right / 1440), round(point['y'] * rect.bottom / 840)
+                location = (y << 16) | x
+                user32.PostMessageW(windows_found[0], 0x0201, 1, location)
+                user32.PostMessageW(windows_found[0], 0x0202, 0, location)
+                time.sleep(1)
+                after = capture_client(windows_found[0], rect.right, rect.bottom)
+                before.save(root / 'build/frozen-before.png')
+                after.save(root / 'build/frozen-after.png')
+                print(f'Research click: client={rect.right}x{rect.bottom}, point={x},{y}', flush=True)
+                assert ImageChops.difference(before.convert('RGB'), after.convert('RGB')).getbbox(), 'Research dialog did not change screen'
+                after.save(root / 'docs/validation/multi-document-mvp/frozen-research-window.png')
             assert user32.PostMessageW(windows_found[0], 0x0010, 0, 0)
             assert process.wait(15) == 0
             print(f"Verified startup and normal close: {label}")
@@ -181,5 +274,8 @@ if review_workflow:
     report.update(review_module_bundled=True, review_and_coverage_controls_bundled=True)
 if home_ai:
     report["home_ai_controls_bundled"] = True
+if research_mvp:
+    report.update(research_modules_bundled=True, frozen_research_code_corpus_checked=True,
+                  research_entry_clicked=True, research_window_screenshot='docs/validation/multi-document-mvp/frozen-research-window.png')
 (report_dir / "package-results.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 print(json.dumps(report, indent=2))

@@ -1,0 +1,115 @@
+269 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder D:\code\DocLens\.venv\conda-meta does not exist.
+320 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.10
+320 INFO: Python: 3.13.5 (conda)
+342 INFO: Platform: Windows-11-10.0.26200-SP0
+342 INFO: Python environment: D:\code\DocLens\.venv
+343 INFO: wrote build\DocLens.spec
+348 INFO: Removing temporary files and cleaning cache in D:\code\DocLens\build\pyinstaller-cache\pyinstaller
+365 INFO: Module search paths (PYTHONPATH):
+['D:\\software\\Miniconda\\python313.zip',
+ 'D:\\software\\Miniconda\\DLLs',
+ 'D:\\software\\Miniconda\\Lib',
+ 'D:\\software\\Miniconda',
+ 'D:\\code\\DocLens\\.venv',
+ 'D:\\code\\DocLens\\.venv\\Lib\\site-packages',
+ 'D:\\code\\DocLens\\src',
+ 'D:\\code\\DocLens\\scripts']
+247 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder D:\code\DocLens\.venv\conda-meta does not exist.
+1119 INFO: Appending 'binaries' from .spec
+1122 INFO: Appending 'datas' from .spec
+1137 INFO: checking Analysis
+1138 INFO: Building Analysis because Analysis-00.toc is non existent
+1138 INFO: Looking for Python shared library...
+1138 INFO: Using Python shared library: D:\software\Miniconda\python313.dll
+1138 INFO: Running Analysis Analysis-00.toc
+1138 INFO: Target bytecode optimization level: 0
+1138 INFO: Initializing module dependency graph...
+1142 INFO: Initializing module graph hook caches...
+1162 INFO: Analyzing modules for base_library.zip ...
+195 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder D:\code\DocLens\.venv\conda-meta does not exist.
+192 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder D:\code\DocLens\.venv\conda-meta does not exist.
+192 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder D:\code\DocLens\.venv\conda-meta does not exist.
+3405 INFO: Processing standard module hook 'hook-encodings.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+194 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder D:\code\DocLens\.venv\conda-meta does not exist.
+5816 INFO: Processing standard module hook 'hook-heapq.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+6468 INFO: Processing standard module hook 'hook-math.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+12375 INFO: Processing standard module hook 'hook-pickle.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+18586 INFO: Caching module dependency graph...
+18750 INFO: Analyzing D:\code\DocLens\scripts\launcher.py
+18920 INFO: Processing standard module hook 'hook-PySide6.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+19334 INFO: Processing standard module hook 'hook-shiboken6.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+20156 INFO: Processing standard module hook 'hook-PySide6.QtNetwork.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+26762 INFO: Processing standard module hook 'hook-PySide6.QtCore.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+34829 INFO: Processing standard module hook 'hook-PySide6.QtGui.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+45330 INFO: Processing standard module hook 'hook-PySide6.QtQml.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+46898 WARNING: QtLibraryInfo(PySide6): QML plugin binary 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PySide6\\qml\\Qt\\labs\\assetdownloader\\qmlassetdownloaderprivateplugin.dll' does not exist!
+51759 INFO: Processing standard module hook 'hook-PySide6.QtQuick.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+53889 INFO: Processing standard module hook 'hook-PySide6.QtOpenGL.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+57803 INFO: Processing standard module hook 'hook-_ctypes.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+58116 INFO: Processing standard module hook 'hook-difflib.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+58295 INFO: Processing standard module hook 'hook-docx.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+59879 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+59890 INFO: SetuptoolsInfo: initializing cached setuptools info...
+570 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder D:\code\DocLens\.venv\conda-meta does not exist.
+62222 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+62973 INFO: Processing standard module hook 'hook-xml.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+65642 INFO: Processing standard module hook 'hook-lxml.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+184 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder D:\code\DocLens\.venv\conda-meta does not exist.
+66430 INFO: Processing standard module hook 'hook-lxml.etree.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+71912 INFO: Processing standard module hook 'hook-xml.dom.domreg.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+73807 INFO: Processing standard module hook 'hook-PIL.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+74294 INFO: Processing standard module hook 'hook-PIL.Image.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+176 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder D:\code\DocLens\.venv\conda-meta does not exist.
+75501 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+76330 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+79086 INFO: Processing standard module hook 'hook-platform.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+80610 INFO: Processing standard module hook 'hook-sqlite3.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+203 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder D:\code\DocLens\.venv\conda-meta does not exist.
+81921 INFO: Processing standard module hook 'hook-pypdfium2.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+82192 INFO: Processing standard module hook 'hook-pypdfium2_raw.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+83581 INFO: Processing module hooks (post-graph stage)...
+85043 INFO: Processing standard module hook 'hook-sysconfig.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+85450 INFO: Processing standard module hook 'hook-webbrowser.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+86949 INFO: Processing standard module hook 'hook-lxml.isoschematron.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+88837 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+89108 INFO: Processing standard module hook 'hook-lxml.objectify.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+89207 INFO: Performing binary vs. data reclassification (2000 entries)
+93181 INFO: Looking for ctypes DLLs
+93354 INFO: Analyzing run-time hooks ...
+93359 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+93372 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+93388 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+93400 INFO: Including run-time hook 'pyi_rth_pyside6.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+93410 INFO: Processing pre-find-module-path hook 'hook-_pyi_rth_utils.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
+93420 INFO: Processing standard module hook 'hook-_pyi_rth_utils.py' from 'D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+93654 INFO: Creating base_library.zip...
+93744 INFO: Looking for dynamic libraries
+95073 INFO: Extra DLL search directories (AddDllDirectory): ['D:\\code\\DocLens\\.venv\\Lib\\site-packages\\shiboken6']
+95073 INFO: Extra DLL search directories (PATH): ['D:\\code\\DocLens\\.venv\\Lib\\site-packages\\PySide6']
+114641 INFO: Warnings written to D:\code\DocLens\build\pyinstaller\DocLens\warn-DocLens.txt
+114815 INFO: Graph cross-reference written to D:\code\DocLens\build\pyinstaller\DocLens\xref-DocLens.html
+115134 INFO: checking PYZ
+115135 INFO: Building PYZ because PYZ-00.toc is non existent
+115135 INFO: Building PYZ (ZlibArchive) D:\code\DocLens\build\pyinstaller\DocLens\PYZ-00.pyz
+116733 INFO: Building PYZ (ZlibArchive) D:\code\DocLens\build\pyinstaller\DocLens\PYZ-00.pyz completed successfully.
+116773 INFO: checking PKG
+116774 INFO: Building PKG because PKG-00.toc is non existent
+116775 INFO: Building PKG (CArchive) DocLens.pkg
+116890 INFO: Building PKG (CArchive) DocLens.pkg completed successfully.
+116895 INFO: Bootloader D:\code\DocLens\.venv\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+116895 INFO: checking EXE
+116896 INFO: Building EXE because EXE-00.toc is non existent
+116896 INFO: Building EXE from EXE-00.toc
+116899 INFO: Copying bootloader EXE to D:\code\DocLens\build\pyinstaller\DocLens\DocLens.exe
+117030 INFO: Copying icon to EXE
+117153 INFO: Copying 0 resources to EXE
+117153 INFO: Embedding manifest in EXE
+117263 INFO: Appending PKG archive to EXE
+117628 INFO: Fixing EXE headers
+118558 INFO: Building EXE from EXE-00.toc completed successfully.
+118657 INFO: checking COLLECT
+118658 INFO: Building COLLECT because COLLECT-00.toc is non existent
+118661 INFO: Removing dir D:\code\DocLens\dist\v0.6.0\DocLens
+124165 INFO: Building COLLECT COLLECT-00.toc
+152759 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+152961 INFO: Build complete! The results are available in: D:\code\DocLens\dist\v0.6.0
