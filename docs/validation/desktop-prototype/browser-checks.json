@@ -1,0 +1,284 @@
+{
+  "browser": "Microsoft Edge headless",
+  "date": "2026-11-24",
+  "results": [
+    {
+      "name": "workspace-1280: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "workspace-1280: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "library-1280: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "library-1280: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "compare-1280: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "compare-1280: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "evidence-1280: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "evidence-1280: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "notes-1280: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "notes-1280: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "version-compare-1280: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "version-compare-1280: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "search-1280: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "search-1280: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "share-1280: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "share-1280: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "settings-1280: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "settings-1280: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "workspace-1440: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "workspace-1440: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "library-1440: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "library-1440: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "compare-1440: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "compare-1440: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "evidence-1440: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "evidence-1440: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "notes-1440: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "notes-1440: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "version-compare-1440: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "version-compare-1440: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "search-1440: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "search-1440: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "share-1440: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "share-1440: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "settings-1440: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "settings-1440: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "workspace-1920: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "workspace-1920: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "library-1920: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "library-1920: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "compare-1920: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "compare-1920: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "evidence-1920: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "evidence-1920: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "notes-1920: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "notes-1920: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "version-compare-1920: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "version-compare-1920: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "search-1920: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "search-1920: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "share-1920: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "share-1920: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "settings-1920: no page overflow",
+      "pass": true
+    },
+    {
+      "name": "settings-1920: styles loaded",
+      "pass": true
+    },
+    {
+      "name": "matrix updates mention and exact quote",
+      "pass": true
+    },
+    {
+      "name": "fourth document selected",
+      "pass": true
+    },
+    {
+      "name": "insufficient evidence visible",
+      "pass": true
+    },
+    {
+      "name": "citation enters notes",
+      "pass": true
+    },
+    {
+      "name": "citation points to D",
+      "pass": true
+    },
+    {
+      "name": "note persists after reload",
+      "pass": true
+    },
+    {
+      "name": "search empty state",
+      "pass": true
+    },
+    {
+      "name": "search has 3 literal results",
+      "pass": true
+    },
+    {
+      "name": "search result highlights query",
+      "pass": true
+    },
+    {
+      "name": "diff navigation updates text",
+      "pass": true
+    },
+    {
+      "name": "reverse version direction survives navigation",
+      "pass": true
+    },
+    {
+      "name": "MD import escapes untrusted text",
+      "pass": true
+    },
+    {
+      "name": "desktop interactive entry loads matrix",
+      "pass": true
+    },
+    {
+      "name": "index has 9 titled iframe canvases",
+      "pass": true
+    },
+    {
+      "name": "browser runtime/resource errors",
+      "pass": true,
+      "errors": []
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "file": "with-originals.zip",
+    "crc_ok": true,
+    "entries": [
+      "README.txt",
+      "manifest.json",
+      "project.json",
+      "report.md",
+      "originals/a-example.md",
+      "originals/b-example.md",
+      "originals/c-example.md",
+      "originals/d-example.md"
+    ],
+    "manifest": {
+      "schema": "doclens-ui-demo/1",
+      "synthetic": true,
+      "originals": true,
+      "documents": 4
+    }
+  },
+  {
+    "file": "without-originals.zip",
+    "crc_ok": true,
+    "entries": [
+      "README.txt",
+      "manifest.json",
+      "project.json",
+      "report.md"
+    ],
+    "manifest": {
+      "schema": "doclens-ui-demo/1",
+      "synthetic": true,
+      "originals": false,
+      "documents": 4
+    }
+  }
+]

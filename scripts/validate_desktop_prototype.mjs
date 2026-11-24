@@ -1,0 +1,42 @@
+// Usage: node scripts/validate_desktop_prototype.mjs (Windows + Microsoft Edge)
+import {spawn} from 'node:child_process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+const root=process.cwd(),out=path.join(root,'docs/validation/desktop-prototype'),build=path.join(root,'build/desktop-prototype');
+await fs.mkdir(out,{recursive:true});await fs.mkdir(path.join(build,'downloads'),{recursive:true});
+const edge=spawn('C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--remote-debugging-port=9337','--remote-debugging-address=127.0.0.1',`--user-data-dir=${path.join(build,'edge-profile')}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let tab;for(let i=0;i<60;i++){try{const tabs=await(await fetch('http://127.0.0.1:9337/json/list')).json();tab=tabs.find(t=>t.type==='page');if(tab)break}catch{}await sleep(250)}
+if(!tab)throw new Error('Edge debugging endpoint unavailable');
+const ws=new WebSocket(tab.webSocketDebuggerUrl);await new Promise(r=>ws.addEventListener('open',r,{once:true}));
+let id=0;const pending=new Map(),errors=[],results=[];
+ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);pending.delete(m.id);m.error?p?.reject(new Error(JSON.stringify(m.error))):p?.resolve(m.result)}if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails.text+':'+(m.params.exceptionDetails.exception?.description||''));if(m.method==='Log.entryAdded'&&m.params.entry.level==='error')errors.push(m.params.entry.text)});
+function c(method,params={}){return new Promise((resolve,reject)=>{let i=++id;pending.set(i,{resolve,reject});ws.send(JSON.stringify({id:i,method,params}));setTimeout(()=>{if(pending.has(i)){pending.delete(i);reject(new Error('Timeout '+method))}},15000).unref()})}
+async function ev(expression){const r=await c('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value}
+async function go(page){await c('Page.navigate',{url:pathToFileURL(path.join(root,'examples/desktop-prototype',page+'.html')).href});for(let i=0;i<60;i++){if(await ev(`location.pathname.endsWith('/${page}.html') && document.readyState==="complete" && !!document.querySelector(".app,iframe")`))break;await sleep(75)}await sleep(160)}
+async function check(name,expression){const pass=await ev(expression);results.push({name,pass:!!pass});if(!pass)throw new Error('Check failed: '+name)}
+async function shot(name){const {data}=await c('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(out,name+'.png'),Buffer.from(data,'base64'))}
+try{
+await c('Page.enable');await c('Runtime.enable');await c('Log.enable');await c('Page.setDownloadBehavior',{behavior:'allow',downloadPath:path.join(build,'downloads')});
+// Ensure repeatable screenshots start from the same browser-local demo state.
+await go('notes');await ev(`['note','note-title','citation','density','project-name'].forEach(k=>localStorage.removeItem('doclens-demo-'+k))`);
+for(const width of [1280,1440,1920]){await c('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});for(const page of ['workspace','library','compare','evidence','notes','version-compare','search','share','settings']){await go(page);await check(`${page}-${width}: no page overflow`,'document.documentElement.scrollWidth <= innerWidth');await check(`${page}-${width}: styles loaded`,'getComputedStyle(document.querySelector(".app")).display === "grid"');if(width===1440||page==='compare')await shot(`${page}-${width}`)}}
+await c('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});await go('compare');await ev(`document.querySelectorAll('[data-cell]')[1].click()`);await check('matrix updates mention and exact quote',`document.querySelector('#reader').textContent.includes('仅提及') && document.querySelector('#highlight-target mark').textContent===DEMO.docs[1].text.split(String.fromCharCode(10))[1]`);
+await ev('document.querySelector(".doc-choice[value=d]").checked=true;document.querySelector("[data-action=run]").click()');await check('fourth document selected','document.querySelectorAll(".matrix thead th").length===5');
+await ev(`document.querySelectorAll('[data-cell]')[11].click()`);await check('insufficient evidence visible','document.querySelector("#reader").textContent.includes("证据不足")');await shot('compare-insufficient-1440');
+await ev('document.querySelector("[data-action=cite]").click()');await sleep(350);await check('citation enters notes','location.pathname.endsWith("notes.html")');await check('citation points to D','document.querySelector("#note-citations").textContent.includes("04_待整理观察.txt")');
+await ev('document.querySelector("#note-body").value="# 验证笔记\\n\\n保存与恢复测试 · 合成示例";document.querySelector("[data-action=save-note]").click()');await c('Page.reload');await sleep(350);await check('note persists after reload','document.querySelector("#note-body").value.includes("保存与恢复测试")');
+await ev('document.querySelector("[data-action=export-note]").click()');await go('share');await ev('document.querySelector("#share-name").value="without-originals";document.querySelector("[data-action=export-zip]").click()');await sleep(250);await ev('document.querySelector("#include-originals").checked=true;document.querySelector("#share-name").value="with-originals";document.querySelector("[data-action=export-zip]").click()');
+await go('search');await ev('document.querySelector("#query").value="no-such-term";document.querySelector("#search-form").requestSubmit()');await check('search empty state','document.querySelector("#results").textContent.includes("未发现匹配")');
+await ev('document.querySelector("#query").value="ResNet";document.querySelector("#search-form").requestSubmit()');await check('search has 3 literal results','document.querySelectorAll(".result").length===3');await ev('document.querySelector(".result").click()');await sleep(250);await check('search result highlights query','document.querySelector("#highlight-target").textContent.includes("ResNet")');
+await go('version-compare');await ev('document.querySelector("[data-action=next-diff]").click()');await check('diff navigation updates text','document.querySelector("#new-text").textContent.includes("随机种子")');
+await ev(`document.querySelector('#old-version').value='v2';document.querySelector('#new-version').value='v1';document.querySelector('[data-action=version-run]').click();document.querySelector('[data-action=next-diff]').click()`);await check('reverse version direction survives navigation',`document.querySelector('#new-text').textContent.includes('仅取前 100 条样本')`);
+await go('library');await fs.writeFile(path.join(build,'import-example.md'),'# 合成导入案例\n安全预览 <script>alert(1)</script>');const dom=await c('DOM.getDocument');const input=await c('DOM.querySelector',{nodeId:dom.root.nodeId,selector:'#file-input'});await c('DOM.setFileInputFiles',{nodeId:input.nodeId,files:[path.join(build,'import-example.md')]});await sleep(400);await check('MD import escapes untrusted text',`document.querySelector('#library-preview').textContent.includes('<script>') && !document.querySelector('#library-preview script')`);
+await go('desktop');await check('desktop interactive entry loads matrix',`document.querySelectorAll('[data-cell]').length===9`);
+await go('index');await check('index has 9 titled iframe canvases','document.querySelectorAll("iframe[title]").length===9');await shot('index-1440');
+// Restore clean synthetic content for reviewer screenshots and subsequent runs.
+await go('notes');await ev('localStorage.removeItem("doclens-demo-note");localStorage.removeItem("doclens-demo-citation");localStorage.removeItem("doclens-demo-note-title")');await sleep(500);
+results.push({name:'browser runtime/resource errors',pass:errors.length===0,errors});
+}finally{await fs.writeFile(path.join(out,'browser-checks.json'),JSON.stringify({browser:'Microsoft Edge headless',date:'2026-11-24',results,errors},null,2));try{await c('Browser.close')}catch{}ws.close();edge.kill()}
+console.log(JSON.stringify({checks:results.length,failures:results.filter(x=>!x.pass),errors},null,2));
