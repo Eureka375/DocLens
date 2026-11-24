@@ -119,7 +119,7 @@ class ResearchProject:
                         index = bisect_right(starts, match.start()) - 1
                         low, high = starts[index], ends[index]
                         low, high = max(low, match.start()-200), min(high, match.end()+100)
-                        result.append(dict(id=f"{d['id']}-{start}-{end}-{term}", document=d['id'],
+                        result.append(dict(id=f"{d['id']}-{start}-{end}-{term.replace(' ', '-')}", document=d['id'],
                             kind=kind, term=term, start=start, end=end, quote=match[0],
                             context=b['text'], blockStart=b['start'], location=b['location'], section=' / '.join(b['section']),
                             state=_state(b['text'][low:high], ' / '.join(b['section']), match.start()-low, match.end()-low)))

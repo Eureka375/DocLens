@@ -143,3 +143,14 @@ def test_long_paragraph_classification_scans_each_clause_once(tmp_path, monkeypa
     monkeypatch.setattr(research, '_state', count)
     assert len(p.evidence()) == 1500
     assert max(scanned) <= 350
+
+
+def test_multiword_entity_anchors_are_valid_markdown_urls(tmp_path):
+    f = tmp_path / 'random.txt'
+    f.write_text('We use Random Forest.', encoding='utf-8')
+    p = ResearchProject()
+    p.import_files([f])
+    e = p.evidence()[0]
+    p.save_note('', 'Check method', e['id'])
+    assert ' ' not in e['id']
+    assert f"(#e-{e['id']})" in p.markdown()
