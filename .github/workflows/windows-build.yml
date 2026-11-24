@@ -1,0 +1,100 @@
+name: Windows build v0.5.2
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-package:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      QT_QUICK_BACKEND: software
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+      - name: Install project dependencies
+        run: uv sync --locked --python 3.13
+      - name: Run full Windows test suite
+        run: uv run --locked python -m pytest -q
+      - name: Install pinned packaging dependencies
+        run: uv pip install --python .venv/Scripts/python.exe "pyinstaller==6.22.3"
+      - name: Build and stage portable bundle
+        shell: pwsh
+        run: |
+          ./scripts/package.ps1 -OutputDirectory dist
+          if (-not (Test-Path 'dist/DocLens/DocLens.exe')) { throw "Missing DocLens.exe" }
+          New-Item -ItemType Directory -Path 'dist/v0.5.2' -Force | Out-Null
+          Copy-Item -LiteralPath 'dist/DocLens' -Destination 'dist/v0.5.2/DocLens' -Recurse -Force
+          if (-not (Test-Path 'dist/v0.5.2/DocLens/DocLens.exe')) { throw "Missing versioned EXE" }
+      - name: Verify portable archive and GUI interactions
+        shell: pwsh
+        run: |
+          & .venv/Scripts/python.exe scripts/verify_windows_release.py 0.5.2
+          if ($LASTEXITCODE -ne 0) { throw "Portable verification failed" }
+      - name: Build Windows installer with Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $compiler = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $compiler)) {
+            $candidate = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+            if ($null -eq $candidate) { throw "ISCC.exe unavailable" }
+            $compiler = $candidate.Source
+          }
+          & $compiler 'scripts/DocLens.iss'
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+          if (-not (Test-Path 'dist/DocLens-Setup-0.5.2-x64.exe')) { throw "Installer missing" }
+      - name: Verify silent installation and startup
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path 'dist/DocLens-Setup-0.5.2-x64.exe').Path
+          $target = Join-Path $env:RUNNER_TEMP 'DocLens052-InstallationSmoke'
+          $installArgs = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="' + $target + '"'))
+          $setup = Start-Process -FilePath $installer -ArgumentList $installArgs -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "Installer exited with $($setup.ExitCode)" }
+          $exe = Join-Path $target 'DocLens.exe'
+          if (-not (Test-Path $exe)) { throw "Installed executable missing" }
+          $process = Start-Process -FilePath $exe -PassThru
+          try {
+            Start-Sleep -Seconds 4
+            $process.Refresh()
+            if ($process.HasExited) { throw "Installed app quit unexpectedly" }
+          } finally {
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+          }
+      - name: Record build commit and SHA256 checksums
+        shell: pwsh
+        run: |
+          $files = @('dist/DocLens-Setup-0.5.2-x64.exe','releases/v0.5.2/DocLens-V0.5.2-Windows.zip')
+          $checksums = foreach ($file in $files) {
+            $hash = Get-FileHash -LiteralPath $file -Algorithm SHA256
+            "$($hash.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($file))"
+          }
+          $checksums | Set-Content 'dist/SHA256SUMS.txt' -Encoding ascii
+          $sha = git rev-parse HEAD
+          @("DocLens v0.5.2 Windows x64", "Commit: $sha", "Ref: $env:GITHUB_REF",
+            "Tests: pytest, portable GUI and zip verification, silent setup install and startup",
+            "Build: Python 3.13 / PyInstaller 6.22.3 / Inno Setup 6; unsigned") |
+            Set-Content 'dist/BUILD_INFO.txt' -Encoding utf8
+          Get-Content 'dist/SHA256SUMS.txt'
+      - name: Upload verified Windows installer and portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: DocLens-v0.5.2-Windows-x64
+          path: |
+            dist/DocLens-Setup-0.5.2-x64.exe
+            releases/v0.5.2/DocLens-V0.5.2-Windows.zip
+            releases/v0.5.2/DocLens-V0.5.2-Windows.zip.sha256
+            docs/validation/v0.5.2/package-results.json
+            dist/SHA256SUMS.txt
+            dist/BUILD_INFO.txt
+          if-no-files-found: error
+          retention-days: 30

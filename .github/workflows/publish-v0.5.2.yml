@@ -1,0 +1,143 @@
+name: Publish DocLens v0.5.2 Windows Release
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/publish-v0.5.2.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: doclens-v0.5.2-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'Eureka375/DocLens'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BUILD_RUN: "44997792762"
+      SOURCE_SHA: "afb22cf73cbd4d351ce2a088ee93acba6d247361"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify source run, source commit and release availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git cat-file -t "$SOURCE_SHA")" = commit
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN" --jq '.conclusion')" = success
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN" --jq '.head_sha')" = "$SOURCE_SHA"
+          if gh release view v0.5.2 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Already published: refuse overwrite" >&2
+            exit 1
+          fi
+      - name: Download verified main build
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir downloaded
+          gh run download "$BUILD_RUN" --repo "$GITHUB_REPOSITORY" \
+            --name "DocLens-v0.5.2-Windows-x64" --dir downloaded
+          find downloaded -type f -printf '%p (%s bytes)\n'
+      - name: Verify and stage release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          from hashlib import sha256
+          import shutil, json
+          root, dest = Path("downloaded"), Path("release-assets")
+          dest.mkdir()
+          names = ("DocLens-Setup-0.5.2-x64.exe", "DocLens-V0.5.2-Windows.zip",
+                   "DocLens-V0.5.2-Windows.zip.sha256", "SHA256SUMS.txt",
+                   "BUILD_INFO.txt", "package-results.json")
+          for name in names:
+              found = list(root.rglob(name))
+              if len(found) != 1:
+                  raise RuntimeError(f"Expected one {name}, found {len(found)}")
+              shutil.copy2(found[0], dest / name)
+          expected = {
+              "DocLens-Setup-0.5.2-x64.exe": "fca9600225e2186351dcf4e2e078cd23b1f8082e128a761f8b4ee5f348e08426",
+              "DocLens-V0.5.2-Windows.zip": "adc1ec89cd0264688e8c78aafc9a244803187803e20b2f1a644fce8d5181fba0",
+          }
+          sums = (dest / "SHA256SUMS.txt").read_text()
+          for name, digest in expected.items():
+              actual = sha256((dest / name).read_bytes()).hexdigest()
+              if digest != actual or f"{digest}  {name}" not in sums:
+                  raise RuntimeError(f"SHA256 verification failed: {name}")
+          if "afb22cf73cbd4d351ce2a088ee93acba6d247361" not in (dest / "BUILD_INFO.txt").read_text(encoding="utf-8-sig"):
+              raise RuntimeError("BUILD_INFO source SHA mismatch")
+          report = json.loads((dest / "package-results.json").read_text())
+          if report["version"] != "0.5.2" or report["sha256"] != expected["DocLens-V0.5.2-Windows.zip"]:
+              raise RuntimeError("Verification report inconsistent with source ZIP")
+          sidecar = (dest / "DocLens-V0.5.2-Windows.zip.sha256").read_text().strip()
+          if sidecar != f"{expected['DocLens-V0.5.2-Windows.zip']}  DocLens-V0.5.2-Windows.zip":
+              raise RuntimeError("ZIP checksum sidecar mismatch")
+          print("Both binaries, source identity and verification report checked")
+          PY
+      - name: Write release notes
+        shell: bash
+        run: |
+          cat > release-assets/RELEASE_NOTES.md <<'NOTES'
+          ## DocLens v0.5.2 — Windows x64
+
+          本版本从正式 main 分支合并后的源码重新构建，整合 PR #1 与 PR #2，保留 v0.5.1 的结构化比较、原貌预览、审阅清单、HTML 导出与 AI 分批分析，并新增更可靠的段落匹配、移动并修改识别、AI 原文摘录验证。
+
+          ### 下载文件
+          - **DocLens-Setup-0.5.2-x64.exe**：Windows 安装版，推荐使用。
+          - **DocLens-V0.5.2-Windows.zip**：免安装便携版；请解压整个目录并运行 DocLens.exe。
+          - **SHA256SUMS.txt**：安装包和便携版校验值。
+          - **DocLens-V0.5.2-Windows.zip.sha256**：便携版单独校验文件。
+          - **BUILD_INFO.txt** 和 **package-results.json**：构建源提交及验证记录。
+
+          ### 验收与来源
+          构建使用主分支提交 afb22cf73cbd4d351ce2a088ee93acba6d247361。Windows 完整测试 160 项通过，此外核心与 Windows 桌面回归均通过。便携版已进行 TXT、PDF、学术文档实际启动/关闭与 ZIP 完整性检查，安装版经过 Inno Setup 静默安装和启动冒烟测试。
+
+          ### 注意
+          安装包未签名，Windows 可能显示未知发布者提示。DOCX 原貌预览依赖电脑已安装 Microsoft Word；扫描 PDF 需要先 OCR。AI 分析需用户自行配置模型服务，重要结论仍需人工核对。本地比较与检索不依赖云端模型。
+
+          [源码](https://github.com/Eureka375/DocLens/commit/afb22cf73cbd4d351ce2a088ee93acba6d247361) · [构建验证](https://github.com/Eureka375/DocLens/actions/runs/44997792762)
+          NOTES
+      - name: Publish GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create v0.5.2 \
+            release-assets/DocLens-Setup-0.5.2-x64.exe \
+            release-assets/DocLens-V0.5.2-Windows.zip \
+            release-assets/DocLens-V0.5.2-Windows.zip.sha256 \
+            release-assets/SHA256SUMS.txt \
+            release-assets/BUILD_INFO.txt \
+            release-assets/package-results.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SOURCE_SHA" \
+            --title "DocLens v0.5.2 Windows (Integrated)" \
+            --notes-file release-assets/RELEASE_NOTES.md --latest
+      - name: Verify public release and six attachments
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v0.5.2" --jq '.object.sha')" = "$SOURCE_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v0.5.2" > release.json
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          data = json.loads(Path("release.json").read_text())
+          expected = {"DocLens-Setup-0.5.2-x64.exe", "DocLens-V0.5.2-Windows.zip",
+                      "DocLens-V0.5.2-Windows.zip.sha256", "SHA256SUMS.txt",
+                      "BUILD_INFO.txt", "package-results.json"}
+          found = {x["name"]: x for x in data["assets"]}
+          if expected - found.keys() or any(found[n]["size"] <= 0 for n in expected):
+              raise RuntimeError("Release asset missing or empty")
+          if data["draft"] or data["prerelease"]:
+              raise RuntimeError("Release not public or incorrectly marked prerelease")
+          print("Published:", data["html_url"])
+          print("Verified:", ", ".join(sorted(expected)))
+          PY
