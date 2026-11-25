@@ -1,0 +1,191 @@
+{
+  "browser": "Microsoft Edge headless",
+  "results": [
+    {
+      "name": "workspace 1280x800: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "library 1280x800: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "compare 1280x800: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "diff 1280x800: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "ai-results 1280x800: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "evidence 1280x800: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "notes 1280x800: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "share 1280x800: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "workspace 1440x900: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "library 1440x900: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "compare 1440x900: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "diff 1440x900: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "ai-results 1440x900: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "evidence 1440x900: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "notes 1440x900: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "share 1440x900: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "workspace 1920x1080: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "library 1920x1080: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "compare 1920x1080: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "diff 1920x1080: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "ai-results 1920x1080: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "evidence 1920x1080: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "notes 1920x1080: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "share 1920x1080: styled page without horizontal overflow",
+      "pass": true
+    },
+    {
+      "name": "primary navigation has the four research pages",
+      "pass": true
+    },
+    {
+      "name": "literal term boundaries and case handling",
+      "pass": true
+    },
+    {
+      "name": "localized diff can highlight numeric changes",
+      "pass": true
+    },
+    {
+      "name": "new keyword displays no match",
+      "pass": true
+    },
+    {
+      "name": "edited term picks its own literal hit",
+      "pass": true
+    },
+    {
+      "name": "keyword removed",
+      "pass": true
+    },
+    {
+      "name": "document scope narrows the keyword counts and source list",
+      "pass": true
+    },
+    {
+      "name": "diff in the UI marks both 50 and 100",
+      "pass": true
+    },
+    {
+      "name": "change selected document and fragment",
+      "pass": true
+    },
+    {
+      "name": "cancel closes preview without generating results",
+      "pass": true
+    },
+    {
+      "name": "confirmation shows exact original selected excerpts",
+      "pass": true
+    },
+    {
+      "name": "AI demo shows four evidence labels and partial coverage",
+      "pass": true
+    },
+    {
+      "name": "summary cites both sources",
+      "pass": true
+    },
+    {
+      "name": "adding a third citation gives feedback",
+      "pass": true
+    },
+    {
+      "name": "multiple sources survive navigation",
+      "pass": true
+    },
+    {
+      "name": "note persists after reload",
+      "pass": true
+    },
+    {
+      "name": "citation opens the correct original block",
+      "pass": true
+    },
+    {
+      "name": "temporary local preview treats markup as text",
+      "pass": true
+    },
+    {
+      "name": "original documents are unchecked by default",
+      "pass": true
+    },
+    {
+      "name": "share manifest updates when originals are included",
+      "pass": true
+    },
+    {
+      "name": "index has eight independent iframe boards",
+      "pass": true
+    },
+    {
+      "name": "no runtime errors and no remote requests",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "requests": []
+}
