@@ -1,0 +1,40 @@
+{
+  "status": "passed",
+  "documents": [
+    {
+      "id": "a",
+      "file": "sample-documents/a.pdf",
+      "sha256": "44d643a7fce0cbac15a3e295e40f2a1c1d81c33b07dc338b5bfc2ce9682c17df",
+      "pages": 3,
+      "source_words_valid": true,
+      "rendered_pixels_identical": true
+    },
+    {
+      "id": "b",
+      "file": "sample-documents/b.pdf",
+      "sha256": "adeb980b6fe673e4264caa263ce11d5c9ae82aec8f0ed303c423a9da4ae0b4a2",
+      "pages": 3,
+      "source_words_valid": true,
+      "rendered_pixels_identical": true
+    },
+    {
+      "id": "c",
+      "file": "sample-documents/c.pdf",
+      "sha256": "45227deeada4d44f7fb2b04e0adf4b67367ff3632e69bf2db25c7e4c95df747e",
+      "pages": 3,
+      "source_words_valid": true,
+      "rendered_pixels_identical": true
+    },
+    {
+      "id": "d",
+      "file": "sample-documents/d.pdf",
+      "sha256": "eaca9235185479d653b345571403be3679dc129cb23b91ff07d980dcda27bb71",
+      "pages": 3,
+      "source_words_valid": true,
+      "rendered_pixels_identical": true
+    }
+  ],
+  "total_pages": 12,
+  "total_words": 2293,
+  "scope": "Synthetic PDF asset generation and mapping only; not E01 or production accuracy evaluation."
+}

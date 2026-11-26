@@ -1,0 +1,316 @@
+{
+  "browser": "Microsoft Edge headless / local files",
+  "checks": [
+    {
+      "name": "only documents analysis notes and settings in main navigation",
+      "pass": true
+    },
+    {
+      "name": "fixed right evidence sidebar removed",
+      "pass": true
+    },
+    {
+      "name": "each result has direct full-original and add-to-comparison actions",
+      "pass": true
+    },
+    {
+      "name": "one original viewer opens complete three-page PDF",
+      "pass": true
+    },
+    {
+      "name": "collapsed resources preserve full-size central workspace",
+      "pass": true
+    },
+    {
+      "name": "source PDF link and actual page images exist",
+      "pass": true
+    },
+    {
+      "name": "keyword marks are on PDF text coordinates",
+      "pass": true
+    },
+    {
+      "name": "three independent complete originals and nine pages",
+      "pass": true
+    },
+    {
+      "name": "scrolling one pane preserves others",
+      "pass": true
+    },
+    {
+      "name": "fourth pane cannot be added",
+      "pass": true
+    },
+    {
+      "name": "selector accesses fourth document without adding pane",
+      "pass": true
+    },
+    {
+      "name": "previous next cycles available documents avoiding duplicates",
+      "pass": true
+    },
+    {
+      "name": "per-pane zoom changes independently",
+      "pass": true
+    },
+    {
+      "name": "free selection is outside keyword hit and on page three",
+      "pass": true
+    },
+    {
+      "name": "note dialog shows selected source text",
+      "pass": true
+    },
+    {
+      "name": "arbitrary text annotation retains page quote and PDF version",
+      "pass": true
+    },
+    {
+      "name": "new note is available in notes module",
+      "pass": true
+    },
+    {
+      "name": "note returns to correct full PDF source",
+      "pass": true
+    },
+    {
+      "name": "unanchored notes are allowed",
+      "pass": true
+    },
+    {
+      "name": "multiple notes survive refresh and automatic save",
+      "pass": true
+    },
+    {
+      "name": "table evidence opens shared original reader without sidebar",
+      "pass": true
+    },
+    {
+      "name": "new dimension stays missing instead of fabricated extraction",
+      "pass": true
+    },
+    {
+      "name": "missing value does not open invented evidence",
+      "pass": true
+    },
+    {
+      "name": "full text differences use actual token algorithm",
+      "pass": true
+    },
+    {
+      "name": "association starts from selected documents in library",
+      "pass": true
+    },
+    {
+      "name": "association keeps separate task results inside analysis",
+      "pass": true
+    },
+    {
+      "name": "association clue opens same three-source reader",
+      "pass": true
+    },
+    {
+      "name": "association respects the selected two-document scope",
+      "pass": true
+    },
+    {
+      "name": "two-document clue opens two sources only",
+      "pass": true
+    },
+    {
+      "name": "results 1280px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "reader 1280px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "table 1280px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "discover 1280px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "diff 1280px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "library 1280px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "notes 1280px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "settings 1280px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "tasks 1280px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "results 1440px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "reader 1440px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "table 1440px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "discover 1440px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "diff 1440px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "library 1440px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "notes 1440px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "settings 1440px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "tasks 1440px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "results 1920px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "reader 1920px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "table 1920px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "discover 1920px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "diff 1920px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "library 1920px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "notes 1920px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "settings 1920px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "tasks 1920px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "results 720px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "reader 720px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "table 720px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "discover 720px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "diff 720px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "library 720px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "notes 720px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "settings 720px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "tasks 720px page remains within viewport",
+      "pass": true
+    },
+    {
+      "name": "natural language mode explicitly identifies preset recall",
+      "pass": true
+    },
+    {
+      "name": "natural language highlights evidence rather than the question",
+      "pass": true
+    },
+    {
+      "name": "cancellation retains existing table and note results",
+      "pass": true
+    },
+    {
+      "name": "offline mode blocks external service workflow",
+      "pass": true
+    },
+    {
+      "name": "authorization uses real local PDF excerpt",
+      "pass": true
+    },
+    {
+      "name": "imported text is searchable",
+      "pass": true
+    },
+    {
+      "name": "imported Markdown opens full text reader",
+      "pass": true
+    },
+    {
+      "name": "ZIP import preserves multiple notes and imported text",
+      "pass": true
+    },
+    {
+      "name": "bad ZIP preserves current data",
+      "pass": true
+    },
+    {
+      "name": "malformed citation metadata is rejected before rendering",
+      "pass": true
+    },
+    {
+      "name": "Markdown CSV ZIP downloads exist",
+      "pass": true
+    },
+    {
+      "name": "no runtime errors or remote requests",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "requests": [],
+  "failure": null
+}

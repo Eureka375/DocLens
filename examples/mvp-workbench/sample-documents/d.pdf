@@ -1,0 +1,207 @@
+%PDF-1.3
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 3
+/Kids [ 7 0 R 9 0 R 11 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+4 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Times-Roman
+>>
+endobj
+5 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica-Bold
+>>
+endobj
+6 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+endobj
+7 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 4 0 R
+/F2 5 0 R
+/F3 6 0 R
+>>
+>>
+/MediaBox [ 0.0 0.0 480 660 ]
+/Parent 2 0 R
+/Contents 8 0 R
+>>
+endobj
+8 0 obj
+<<
+/Length 2111
+>>
+stream
+0.16 0.22 0.33 rg
+BT /F3 8 Tf 1 0 0 1 34 630 Tm (DOCLENS / RESEARCH READING SAMPLES) Tj ET
+0.82 0.85 0.90 RG 0.7 w 34 619 m 446 619 l S
+BT /F3 8 Tf 1 0 0 1 34 20 Tm (Synthetic material - D / page 1) Tj ET
+BT /F2 20 Tf 1 0 0 1 34 582 Tm (A Practical Guide to Reading) Tj ET
+BT /F2 20 Tf 1 0 0 1 34 555 Tm (Experiments) Tj ET
+BT /F3 9 Tf 1 0 0 1 34 524 Tm (Research interface demo | 2026 | not a published paper) Tj ET
+BT /F2 14 Tf 1 0 0 1 34 481 Tm (1  Abstract) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 456 Tm (This reading guide explains how to inspect and compare experimental reports) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 439 Tm (without confusing cited settings with the current study.) Tj ET
+BT /F2 14 Tf 1 0 0 1 34 410 Tm (2  Reading the evidence) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 385 Tm (This synthetic paper is provided for interface testing. It is not a published) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 368 Tm (study and its authors, experimental settings and results are fictional. The) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 351 Tm (document is a complete local PDF, with searchable text and stable page) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 334 Tm (coordinates.) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 305 Tm (Our research question concerns the relationship between representation) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 288 Tm (learning and the available training budget. To interpret an experiment, the) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 271 Tm (reader should examine the dataset, the model architecture and the evaluation) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 254 Tm (protocol together. A shared term can have different roles in different) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 237 Tm (papers.) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 208 Tm (A controlled comparison records both the reported result and the conditions) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 191 Tm (under which it was obtained. Results on different datasets or with different) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 174 Tm (training schedules do not establish a direct ranking of methods. Missing) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 157 Tm (details should remain missing until supported by source evidence.) Tj ET
+endstream
+endobj
+9 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 4 0 R
+/F2 5 0 R
+/F3 6 0 R
+>>
+>>
+/MediaBox [ 0.0 0.0 480 660 ]
+/Parent 2 0 R
+/Contents 10 0 R
+>>
+endobj
+10 0 obj
+<<
+/Length 2498
+>>
+stream
+0.16 0.22 0.33 rg
+BT /F3 8 Tf 1 0 0 1 34 630 Tm (DOCLENS / RESEARCH READING SAMPLES) Tj ET
+0.82 0.85 0.90 RG 0.7 w 34 619 m 446 619 l S
+BT /F3 8 Tf 1 0 0 1 34 20 Tm (Synthetic material - D / page 2) Tj ET
+BT /F2 16 Tf 1 0 0 1 34 581 Tm (3  Methods and experimental setting) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 548 Tm (Inspect the model, dataset, training epochs and evaluation protocol before) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 531 Tm (comparing numerical results. A result from prior work is not automatically a) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 514 Tm (result from the current experiment.) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 485 Tm (Our research question concerns the relationship between representation) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 468 Tm (learning and the available training budget. To interpret an experiment, the) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 451 Tm (reader should examine the dataset, the model architecture and the evaluation) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 434 Tm (protocol together. A shared term can have different roles in different) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 417 Tm (papers.) Tj ET
+BT /F2 14 Tf 1 0 0 1 34 388 Tm (4  Results and interpretation) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 361 Tm (A controlled comparison records both the reported result and the conditions) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 344 Tm (under which it was obtained. Results on different datasets or with different) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 327 Tm (training schedules do not establish a direct ranking of methods. Missing) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 310 Tm (details should remain missing until supported by source evidence.) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 281 Tm (A controlled comparison records both the reported result and the conditions) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 264 Tm (under which it was obtained. Results on different datasets or with different) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 247 Tm (training schedules do not establish a direct ranking of methods. Missing) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 230 Tm (details should remain missing until supported by source evidence.) Tj ET
+BT /F2 12 Tf 1 0 0 1 34 201 Tm (Checklist for a fair comparison) Tj ET
+BT /F3 10 Tf 1 0 0 1 40 176 Tm (Dataset and split    | record the exact name) Tj ET
+BT /F3 10 Tf 1 0 0 1 40 156 Tm (Architecture         | separate use from mention) Tj ET
+BT /F3 10 Tf 1 0 0 1 40 136 Tm (Training schedule    | keep the value and unit) Tj ET
+BT /F3 10 Tf 1 0 0 1 40 116 Tm (Evidence             | verify the original passage) Tj ET
+endstream
+endobj
+11 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 4 0 R
+/F2 5 0 R
+/F3 6 0 R
+>>
+>>
+/MediaBox [ 0.0 0.0 480 660 ]
+/Parent 2 0 R
+/Contents 12 0 R
+>>
+endobj
+12 0 obj
+<<
+/Length 2357
+>>
+stream
+0.16 0.22 0.33 rg
+BT /F3 8 Tf 1 0 0 1 34 630 Tm (DOCLENS / RESEARCH READING SAMPLES) Tj ET
+0.82 0.85 0.90 RG 0.7 w 34 619 m 446 619 l S
+BT /F3 8 Tf 1 0 0 1 34 20 Tm (Synthetic material - D / page 3) Tj ET
+BT /F2 16 Tf 1 0 0 1 34 581 Tm (5  Limitations and future work) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 548 Tm (Reading a retrieved passage is the beginning of verification. The surrounding) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 531 Tm (paragraphs may clarify whether a method belongs to the current experiment, a) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 514 Tm (baseline or a cited study. Notes should retain the source location and) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 497 Tm (distinguish direct statements from interpretation.) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 468 Tm (Reading a retrieved passage is the beginning of verification. The surrounding) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 451 Tm (paragraphs may clarify whether a method belongs to the current experiment, a) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 434 Tm (baseline or a cited study. Notes should retain the source location and) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 417 Tm (distinguish direct statements from interpretation.) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 388 Tm (The reader may annotate any selectable text in this document. A search query) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 371 Tm (does not restrict where a note can be attached. When documents change, saved) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 354 Tm (quotations should continue to refer to the source version from which they) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 337 Tm (were collected.) Tj ET
+BT /F2 14 Tf 1 0 0 1 34 308 Tm (Appendix: verification notes) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 281 Tm (A document viewer should provide access to every page, preserve the reading) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 264 Tm (position of each open paper, and make the selected passage easy to revisit.) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 247 Tm (Saving a note must not modify the original PDF.) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 218 Tm (This synthetic paper is provided for interface testing. It is not a published) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 201 Tm (study and its authors, experimental settings and results are fictional. The) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 184 Tm (document is a complete local PDF, with searchable text and stable page) Tj ET
+BT /F1 11.5 Tf 1 0 0 1 34 167 Tm (coordinates.) Tj ET
+endstream
+endobj
+xref
+0 13
+0000000000 65535 f 
+0000000015 00000 n 
+0000000054 00000 n 
+0000000126 00000 n 
+0000000175 00000 n 
+0000000247 00000 n 
+0000000322 00000 n 
+0000000392 00000 n 
+0000000544 00000 n 
+0000002707 00000 n 
+0000002860 00000 n 
+0000005411 00000 n 
+0000005565 00000 n 
+trailer
+<<
+/Size 13
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+7975
+%%EOF
