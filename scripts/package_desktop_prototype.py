@@ -41,12 +41,13 @@ def main():
     files = sorted(p for directory in [EXAMPLE, VALIDATION] for p in directory.rglob('*') if p.is_file())
     files += DESIGN_FILES
     files += [ROOT / 'scripts/validate_desktop_prototype.mjs', Path(__file__).resolve()]
-    target = OUT / 'DocLens-Desktop-Design-v1.1.zip'
+    target = OUT / 'DocLens-Desktop-Design-v1.2.zip'
     with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as archive:
         archive.writestr('START-HERE.txt', (
-            'DocLens 关键词研究桌面原型 v1.1\n\n'
+            'DocLens 关键词研究桌面原型 v1.2\n\n'
             '打开 examples/desktop-prototype/index.html 查看八个界面。\n'
             '打开 examples/desktop-prototype/desktop.html 连续操作。\n'
+            '从总览点击「查看长文档案例」。两份合成 Markdown 位于 examples/desktop-prototype/sample-documents/。\n'
             '新版需求：docs/design/keyword-research-mvp.md\n'
             '检查与截图：docs/validation/keyword-prototype/\n\n'
             '全部研究内容和 AI 结果均为合成示例。\n'
@@ -58,7 +59,7 @@ def main():
         assert archive.testzip() is None
         assert len(archive.namelist()) == len(files) + 1
     digest = hashlib.sha256(target.read_bytes()).hexdigest()
-    (OUT / 'DocLens-Desktop-Design-v1.1.sha256').write_text(digest + '  ' + target.name + '\n', encoding='utf-8')
+    (OUT / 'DocLens-Desktop-Design-v1.2.sha256').write_text(digest + '  ' + target.name + '\n', encoding='utf-8')
     print(json.dumps({'file': str(target), 'bytes': target.stat().st_size, 'files': len(files)+1, 'htmlPages': len(pages), 'sha256': digest}, ensure_ascii=False, indent=2))
 
 if __name__ == '__main__':

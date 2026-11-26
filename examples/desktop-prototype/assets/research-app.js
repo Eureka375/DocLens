@@ -2,16 +2,18 @@
 (() => {
     'use strict';
 
-    const {project, documents, keywords} = window.DEMO;
+    const params = new URLSearchParams(location.search);
+    const longScene = params.get('scenario') === 'long' || document.body.dataset.scenario === 'long';
+    const scenario = longScene ? window.LONG_DEMO : window.DEMO;
+    const {project, documents, keywords} = scenario;
     const {matchRanges, tokenDiff} = window.KeywordCompare;
     const $ = selector => document.querySelector(selector);
     const all = selector => Array.from(document.querySelectorAll(selector));
     const escape = value => String(value).replace(/[&<>"']/g, char => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[char]));
-    const params = new URLSearchParams(location.search);
     const page = document.body.dataset.page === 'desktop' ? 'compare' : document.body.dataset.page;
-    const storageKey = 'doclens-keyword-design-04';
+    const storageKey = 'doclens-keyword-design-04' + (longScene ? '-long' : '');
     const titles = {
         workspace: '项目与文档', library: '文档库', compare: '关键词比较',
         evidence: '证据阅读', notes: '研究笔记', share: '导出与共享'
@@ -39,14 +41,23 @@
         body: '对比表征研究用 ResNet 做编码器，训练 50 轮。轻量视觉编码提到的 100 轮来自相关工作。引用两段原文时，应保留各自的实验主体。',
         citations: [{doc: 'a', block: 1, term: 'ResNet'}, {doc: 'b', block: 1, term: 'ResNet'}]
     };
+    if (longScene) {
+        defaultNote.title = '第 8 章实验设置核对';
+        defaultNote.body = 'A 记录本文实验的 50 轮，B 转述相关工作的 100 轮。比较时应保留两段各自的主体。';
+        defaultNote.citations = scenario.pair.map(key => refFor(key, keywords[0]));
+    }
     const defaults = {keywords, active: keywords[0], scope: documents.map(doc => doc.id), notes: [defaultNote], noteId: 'sample'};
     const state = loadState();
-    let mode = ['diff', 'ai'].includes(params.get('view')) ? params.get('view') : 'source';
-    let pair = [null, null];
+    const requestedView = params.get('view') || document.body.dataset.view;
+    let mode = ['diff', 'ai'].includes(requestedView) ? requestedView : 'source';
+    let pair = scenario.pair?.slice() || [null, null];
     let analysis = null;
     let noteDirty = false;
     let previewDoc = documents[0];
     let toastTimer;
+    const displayedHits = new Map();
+    const hitPageSize = 8;
+    const maxAnalysisBlocks = 20;
 
     function loadState() {
         try {
@@ -81,7 +92,13 @@
     }
 
     function link(text, target, style = '', glyph = '') {
-        return `<a class="dl-btn ${style}" href="${escape(target)}">${glyph ? icon(glyph) : ''}${text}</a>`;
+        return `<a class="dl-btn ${style}" href="${escape(route(target))}">${glyph ? icon(glyph) : ''}${text}</a>`;
+    }
+
+    function route(target) {
+        if (!longScene || !/^(workspace|library|compare|desktop|evidence|notes|share)\.html(?:[?#]|$)/.test(target)) return target;
+        const [base, anchor] = target.split('#');
+        return `${base}${base.includes('?') ? '&' : '?'}scenario=long${anchor ? `#${anchor}` : ''}`;
     }
 
     function badge(text, style = '') {
@@ -148,12 +165,12 @@
 
     function shell() {
         return `<div class="app"><aside class="sidebar">
-            <a class="brand" href="workspace.html"><span class="brand-icon"><img src="assets/vendor/layout-dashboard.svg" alt=""></span>DocLens</a>
+            <a class="brand" href="${route('workspace.html')}"><span class="brand-icon"><img src="assets/vendor/layout-dashboard.svg" alt=""></span>DocLens</a>
             <div class="project-label"><span class="project-initial">研</span><div><strong>${project}</strong><small>本地项目</small></div></div>
-            <nav aria-label="主导航">${nav.map(item => `<a href="${item}.html" ${item === activePage ? 'aria-current="page"' : ''}>${icon(item)}${titles[item]}</a>`).join('')}</nav>
-            <div class="sidebar-foot"><span class="online-dot"></span>Windows 桌面原型<a href="index.html">界面总览</a></div>
+            <nav aria-label="主导航">${nav.map(item => `<a href="${route(`${item}.html`)}" ${item === activePage ? 'aria-current="page"' : ''}>${icon(item)}${titles[item]}</a>`).join('')}</nav>
+            <div class="sidebar-foot"><span class="online-dot"></span>Windows 桌面原型<a href="${longScene ? 'compare.html' : 'long.html'}">${longScene ? '切回简短示例' : '打开长文档案例'}</a><a href="index.html">界面总览</a></div>
         </aside><main>
-            <header class="titlebar"><span>研究工作区 <span class="breadcrumb-divider">/</span> ${titles[page]}</span><span class="prototype-label">合成示例</span></header>
+            <header class="titlebar"><span>研究工作区 <span class="breadcrumb-divider">/</span> ${titles[page]}</span><span class="prototype-label">${longScene ? '合成长文档' : '合成示例'}</span></header>
             <div class="content" id="content"></div>
         </main></div><div id="status-message" role="status" class="toast-message" hidden></div><dialog id="dialog"></dialog>`;
     }
@@ -166,6 +183,7 @@
         return `${pageHeader('项目与文档', '整理项目资料并选择参与比较的文档。', link('打开关键词比较', 'compare.html', 'primary', 'arrow'))}
             <section class="workspace-intro"><div><div class="section-label">当前项目</div><h2>${project}</h2><p>围绕 ResNet 和 CIFAR-10 核对各篇实验设置，整理带原文引用的比较笔记。</p></div>
             <div class="workspace-stats"><div><strong>${documents.length}</strong><span>篇文档</span></div><div><strong>${state.keywords.length}</strong><span>个关键词</span></div><div><strong>${state.notes.length}</strong><span>条笔记</span></div></div></section>
+            ${longScene ? `<p class="long-project-hint"><a class="dl-btn" href="sample-documents/视觉编码实验记录A.md" download>下载长文档 A</a><a class="dl-btn" href="sample-documents/视觉编码文献记录B.md" download>下载长文档 B</a></p>` : ''}
             <section class="panel"><div class="panel-header"><h2>项目文档</h2>${link('导入与预览', 'library.html', '', 'plus')}</div>${documentRows()}</section>`;
     }
 
@@ -179,12 +197,13 @@
     function library() {
         return `${pageHeader('文档库', '预览提取正文并核对逐份解析状态。', link('回到项目', 'workspace.html'))}
             <div class="library-grid"><section class="panel"><div class="panel-header"><h2>项目文档</h2>${button('选择文件', 'file-select', {style: 'primary', glyph: 'plus'})}<input id="file-input" type="file" accept=".pdf,.docx,.md,.markdown,.txt" multiple hidden></div>
-            <p class="panel-inset muted">可临时预览本地 MD/TXT。下方 PDF、DOCX 和解析状态使用合成示例。</p>${documentRows({preview: true})}<div id="import-results" aria-live="polite"></div></section>
+            <p class="panel-inset muted">可临时预览本地 MD/TXT。${longScene ? '这里列出两份合成研究记录。' : '下方 PDF、DOCX 和解析状态使用合成示例。'}</p>${documentRows({preview: true})}<div id="import-results" aria-live="polite"></div></section>
             <section class="panel"><div class="panel-header"><h2>提取正文预览</h2></div><div class="paper" id="library-preview">${libraryPreview(previewDoc)}</div></section></div>`;
     }
 
     function libraryPreview(doc) {
-        return `<h3>${doc.name}</h3>${doc.blocks.map(block => `<p>${escape(block.text)}</p>`).join('')}`;
+        const initialBlocks = longScene ? doc.blocks.slice(0, 5) : doc.blocks;
+        return `<h3>${doc.name}</h3>${longScene ? `<p class="muted">预览前 ${initialBlocks.length} 段，共 ${doc.blocks.length} 段。${link('打开章节阅读', sourceUrl({doc: doc.id, block: 0, term: ''}), 'quiet')}</p>` : ''}${initialBlocks.map(block => `<p>${escape(block.text)}</p>`).join('')}`;
     }
 
     function keywordList() {
@@ -203,7 +222,8 @@
         normalizePair(groups);
         const hitDocs = groups.filter(group => group.refs.length).length;
         const hitBlocks = groups.reduce((total, group) => total + group.refs.length, 0);
-        return `${pageHeader('关键词比较', '查找多篇文档中的原词，核对文字差异与使用语境。', button('选择文档', 'scope', {glyph: 'workspace'}))}
+        const corpusInfo = longScene ? `长文档案例 · ${documents.length} 篇 · ${documents.reduce((total, doc) => total + doc.blocks.length, 0)} 个段落` : '查找多篇文档中的原词，核对文字差异与使用语境。';
+        return `${pageHeader('关键词比较', corpusInfo, button('选择文档', 'scope', {glyph: 'workspace'}))}
             <div class="compare-layout">${keywordList()}
             <section class="panel comparison"><div class="compare-title"><div><div class="section-label">当前关键词</div><h2>${escape(state.active || '请选择关键词')}</h2></div>
             <div class="count-summary"><strong>${hitDocs} / ${groups.length} 篇</strong>命中文档<span></span><strong>${hitBlocks} 个</strong>命中片段</div></div>
@@ -241,8 +261,14 @@
         const legend = showingDiff ? `<div class="mode-hint"><span><span class="online-dot"></span>离线 Diff</span>${identical ? '<span>所选片段内容一致</span>' : diff ? '<span class="legend"><i class="mark-left"></i>仅左侧 <i class="mark-right"></i>仅右侧 <i class="keyword-mark"></i>关键词</span>' : '<span>请选择两篇文档的片段</span>'}</div>`
             : '<div class="mode-hint"><span>从两篇文档各选一段原文</span><span class="legend"><i class="keyword-mark"></i>原词命中</span></div>';
         return `${legend}<div class="reading-grid">${pane('left', groups, diff ? diffText(diff.left) : '')}${pane('right', groups, diff ? diffText(diff.right) : '')}</div>
-            <div class="source-list"><h3>按文档浏览命中</h3>${groups.map(({doc, refs}) => `<details class="source-group"><summary><span>${doc.name}</span><span>${refs.length ? `${refs.length} 个片段` : '当前提取文本未找到'}${doc.status === '部分提取' ? ' · 部分提取' : ''}</span></summary>
-            ${refs.map(ref => `<div class="source-row"><div><small>${blockFor(ref).section} · ${blockFor(ref).location}</small><p>${highlight(blockFor(ref).text, state.active)}</p></div>${link('查看', sourceUrl(ref))}</div>`).join('')}</details>`).join('') || '<p class="empty">选择可读文档后查看结果。</p>'}</div>`;
+            <div class="source-list"><h3>按文档浏览命中</h3>${groups.map(group => `<details class="source-group" data-group="${group.doc.id}">${sourceGroup(group)}</details>`).join('') || '<p class="empty">选择可读文档后查看结果。</p>'}</div>`;
+    }
+
+    function sourceGroup({doc, refs}) {
+        const limit = displayedHits.get(doc.id) || hitPageSize;
+        return `<summary><span>${doc.name}</span><span>${refs.length ? `${refs.length} 个片段` : '当前提取文本未找到'}${doc.status === '部分提取' ? ' · 部分提取' : ''}</span></summary>
+            ${refs.slice(0, limit).map(ref => `<div class="source-row"><div><small>${blockFor(ref).section} · ${blockFor(ref).location}</small><p>${highlight(blockFor(ref).text, state.active)}</p></div>${link('查看', sourceUrl(ref))}</div>`).join('')}
+            ${refs.length > limit ? `<div class="more-hits" data-limit="${limit}"><span>已显示 ${limit} / ${refs.length} 个片段</span>${button(`再显示 ${Math.min(refs.length - limit, hitPageSize)} 个`, 'more-hits', {attrs: `data-doc="${doc.id}"`})}</div>` : ''}`;
     }
 
     function aiView(groups) {
@@ -254,8 +280,9 @@
 
     function analysisView(groups) {
         const known = ['resnet', 'cifar-10'].includes(state.active.toLowerCase());
-        const hasComparison = known && analysis.includes('a:1') && analysis.includes('b:1');
-        const summary = hasComparison ? `<div class="ai-summary"><h3>跨文档摘要</h3><p>在已选片段中，对比表征研究描述本文实验，轻量视觉编码转述相关工作。</p><div class="actions">${link('对比表征研究引文', sourceUrl(refFor('a:1')), 'quiet')}${link('轻量视觉编码引文', sourceUrl(refFor('b:1')), 'quiet')}</div></div>` : '';
+        const summaryRefs = scenario.pair || ['a:1', 'b:1'];
+        const hasComparison = known && summaryRefs.every(key => analysis.includes(key));
+        const summary = hasComparison ? `<div class="ai-summary"><h3>跨文档摘要</h3><p>${scenario.summary || '在已选片段中，对比表征研究描述本文实验，轻量视觉编码转述相关工作。'}</p><div class="actions">${link('文档 A 引文', sourceUrl(refFor(summaryRefs[0])), 'quiet')}${link('文档 B 引文', sourceUrl(refFor(summaryRefs[1])), 'quiet')}</div></div>` : '';
         return `<div class="analysis-results">${summary}${groups.map(({doc, refs}) => {
             const included = refs.filter(ref => analysis.includes(refKey(ref)));
             return `<section class="ai-result"><header><div><h3>${doc.name}</h3><small>命中 ${refs.length} · 提交 ${included.length} · 完成 ${included.length}</small></div>${included.length ? badge(included.length < refs.length ? '部分覆盖' : '演示完成', 'blue') : badge(refs.length ? '未提交' : '未命中')}</header>
@@ -270,7 +297,7 @@
 
     function evidence() {
         const requested = refFor(`${params.get('doc')}:${params.get('block')}`, params.get('term') || '');
-        const current = requested || {doc: 'a', block: 1, term: 'ResNet'};
+        const current = requested || refFor(scenario.pair?.[0] || 'a:1', keywords[0]);
         const doc = documentFor(current.doc);
         const block = blockFor(current);
         const sections = doc.blocks.reduce((result, item, i) => {
@@ -278,8 +305,8 @@
             return result;
         }, []);
         return `${pageHeader('证据阅读', `${doc.name} · 提取正文`, link('返回关键词比较', 'compare.html'))}
-            <div class="evidence-grid"><aside class="panel"><div class="panel-header"><h2>章节导航</h2></div><nav class="chapter-nav" aria-label="章节">${sections.map(section => `<a href="#block-${section.index}" ${section.name === block.section ? 'aria-current="location"' : ''}>${section.name}</a>`).join('')}</nav></aside>
-            <article class="panel document-paper"><div class="section-label">${doc.format} 提取正文</div><h2>${doc.name}</h2>${doc.blocks.map((item, i) => `<section id="block-${i}" class="document-block ${i === current.block ? 'target-block' : ''}"><h3>${i === 0 || doc.blocks[i - 1].section !== item.section ? item.section : ''}</h3><small>${item.location}</small><p>${i === current.block ? highlight(item.text, current.term) : escape(item.text)}</p></section>`).join('')}</article>
+            <div class="evidence-grid"><aside class="panel"><div class="panel-header"><h2>章节导航</h2>${longScene ? badge(`${sections.length} 章`) : ''}</div><nav class="chapter-nav" aria-label="章节">${sections.map(section => `<a href="${longScene ? escape(route(sourceUrl({doc: doc.id, block: section.index, term: current.term}))) : `#block-${section.index}`}" ${section.name === block.section ? 'aria-current="location"' : ''}>${section.name}</a>`).join('')}</nav></aside>
+            <article class="panel document-paper ${longScene ? 'long-paper' : ''}"><div class="section-label">${doc.format} 提取正文${longScene ? ` · 当前章节：${block.section}` : ''}</div><h2>${doc.name}</h2>${doc.blocks.map((item, i) => longScene && item.section !== block.section ? '' : `<section id="block-${i}" class="document-block ${i === current.block ? 'target-block' : ''}"><h3>${i === 0 || doc.blocks[i - 1].section !== item.section ? item.section : ''}</h3><small>${item.location}</small><p>${i === current.block ? highlight(item.text, current.term) : escape(item.text)}</p></section>`).join('')}</article>
             <aside class="panel"><div class="panel-header"><h2>定位片段</h2></div><div class="panel-inset"><small>${block.section} / ${block.location}</small><blockquote>${highlight(block.text, current.term)}</blockquote>${button('加入笔记', 'cite', {style: 'primary', glyph: 'notes', attrs: `data-ref="${refKey(current)}" data-term="${escape(current.term)}"`})}</div></aside></div>`;
     }
 
@@ -304,7 +331,7 @@
             <div class="share-grid"><section class="panel"><div class="panel-header"><h2>Markdown 报告</h2>${badge('便于阅读', 'green')}</div>
             <div class="panel-inset"><p>包含项目关键词、研究笔记和已关联的片段。接收者可在 Markdown 阅读器点击引文链接。</p>${button('下载 Markdown', 'report-export', {style: 'primary', glyph: 'share'})}</div></section>
             <section class="panel"><div class="panel-header"><h2>离线共享包</h2>${badge('演示格式', 'blue')}</div><div class="panel-inset"><p>包含报告和 ${documents.length} 篇合成文档的提取正文，以及已保存的笔记。</p>
-            <label class="checkbox-label"><input id="include-originals" type="checkbox">附带 4 份示例原始文本</label><div class="callout">即使关闭此选项，共享包仍包含提取正文与笔记。</div>
+            <label class="checkbox-label"><input id="include-originals" type="checkbox">附带 ${documents.length} 份示例原始文本</label><div class="callout">即使关闭此选项，共享包仍包含提取正文与笔记。</div>
             <details open class="package-preview"><summary>查看文件清单</summary><pre id="package-list">project.json   项目与提取正文\nreport.md      笔记与引文\nmanifest.json  内容清单\nREADME.txt     阅读说明</pre></details>
             ${button('下载演示 ZIP', 'zip-export', {style: 'primary', glyph: 'share'})}<p class="muted small mt-3 mb-0">演示包可解压阅读，正式项目导入由桌面应用实现。</p></div></section></div>`;
     }
@@ -344,7 +371,8 @@
 
     function selectKeyword(term) {
         state.active = term;
-        pair = [null, null];
+        pair = term === keywords[0] ? scenario.pair?.slice() || [null, null] : [null, null];
+        displayedHits.clear();
         analysis = null;
         persist();
         render();
@@ -363,11 +391,16 @@
     function previewAnalysis() {
         const items = matches().flatMap(group => group.refs);
         if (!items.length) return;
-        openDialog('确认分析范围', `<p class="callout">演示接收方：示例 API。正式版将在确认后联网发送，本次不会发送内容。</p><p class="muted">关键词 ${escape(state.active)} · ${items.length} 个命中片段</p>${items.map(ref =>
-            `<label class="send-item"><input type="checkbox" name="clip" value="${refKey(ref)}" checked><span><strong>${documentFor(ref.doc).name}</strong><small>${blockFor(ref).location}</small><span>${escape(blockFor(ref).text)}</span></span></label>`).join('')}<p id="send-error" role="status"></p>`, data => {
+        const selectedByDefault = longScene ? new Set(pair.filter(Boolean)) : new Set(items.map(refKey));
+        const selectionRows = refs => refs.map(ref =>
+            `<label class="send-item"><input type="checkbox" name="clip" value="${refKey(ref)}" ${selectedByDefault.has(refKey(ref)) ? 'checked' : ''}><span><strong>${documentFor(ref.doc).name}</strong><small>${blockFor(ref).section} · ${blockFor(ref).location}</small><span>${escape(blockFor(ref).text)}</span></span></label>`).join('');
+        const rows = longScene ? selectionRows(items.filter(ref => selectedByDefault.has(refKey(ref)))) + `<details class="more-clips"><summary>展开其余 ${items.length - selectedByDefault.size} 个命中，按需勾选</summary>${selectionRows(items.filter(ref => !selectedByDefault.has(refKey(ref))))}</details>` : selectionRows(items);
+        openDialog('确认分析范围', `<p class="callout">演示接收方：示例 API。正式版将在确认后联网发送，本次不会发送内容。</p>
+            <p class="selection-summary" aria-live="polite" id="ai-selection-summary">已选 ${selectedByDefault.size} / ${items.length} 个命中片段 · 每次最多 ${maxAnalysisBlocks} 个</p>
+            ${rows}<p id="send-error" role="status"></p>`, data => {
             const selected = data.getAll('clip');
-            if (!selected.length) {
-                $('#send-error').textContent = '至少选择一个片段。';
+            if (!selected.length || selected.length > maxAnalysisBlocks) {
+                $('#send-error').textContent = selected.length ? `已超过 ${maxAnalysisBlocks} 个片段，请缩小范围。` : '至少选择一个片段。';
                 return false;
             }
             analysis = selected;
@@ -454,6 +487,14 @@
             selectKeyword(state.keywords[0] || '');
         }, '删除'),
         scope: chooseScope,
+        'more-hits': element => {
+            const group = matches().find(item => item.doc.id === element.dataset.doc);
+            const currentLimit = displayedHits.get(group.doc.id) || hitPageSize;
+            displayedHits.set(group.doc.id, currentLimit + hitPageSize);
+            const panel = element.closest('details');
+            panel.innerHTML = sourceGroup(group);
+            (panel.querySelector('[data-action="more-hits"]') || panel.querySelector('summary')).focus({preventScroll: true});
+        },
         mode: element => { mode = element.dataset.mode; render(); },
         'ai-preview': previewAnalysis,
         'model-settings': () => openDialog('云端模型设置', `<p class="callout">原型使用示例配置。请在正式应用配置服务与凭据。</p>
@@ -515,7 +556,13 @@
         if (element.id === 'include-originals') {
             const list = $('#package-list');
             const base = list.textContent.split('\noriginals/')[0];
-            list.textContent = base + (element.checked ? '\noriginals/     4 份示例文本' : '');
+            list.textContent = base + (element.checked ? `\noriginals/     ${documents.length} 份示例文本` : '');
+        }
+        if (element.name === 'clip') {
+            const selected = all('#dialog [name="clip"]:checked').length;
+            const total = all('#dialog [name="clip"]').length;
+            $('#ai-selection-summary').textContent = `已选 ${selected} / ${total} 个命中片段 · 每次最多 ${maxAnalysisBlocks} 个`;
+            $('#send-error').textContent = '';
         }
         if (element.id === 'file-input') await previewLocalFiles(element.files);
     });

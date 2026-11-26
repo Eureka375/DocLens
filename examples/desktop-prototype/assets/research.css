@@ -87,7 +87,7 @@ small, .small { font-size: 12px; }
 .paper p { font-family: Georgia, 'Microsoft YaHei UI', serif; line-height: 1.95; }
 #library-preview { margin: 14px; }
 #library-preview p { margin-top: 10px; }
-.local-preview { white-space: pre-wrap; overflow-wrap: anywhere; }
+.local-preview { max-height: 48vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 #import-results { padding: 0 16px; color: var(--muted); white-space: pre-line; }
 #import-results:not(:empty) { padding-block: 12px; }
 
@@ -140,6 +140,12 @@ small, .small { font-size: 12px; }
 .source-group summary span:nth-child(2) { color: var(--muted); }
 .source-row { padding: 10px 12px; display: flex; justify-content: space-between; align-items: start; gap: 12px; background: #f7f9f6; border-top: 1px solid var(--line); }
 .source-row p { margin-top: 3px; }
+.more-hits { display: flex; justify-content: space-between; align-items: center; padding: 9px 12px; background: #f0f5ef; color: var(--muted); font-size: 12px; }
+.long-project-hint { display: flex; gap: 9px; margin: 0 0 15px; }
+.long-paper { max-height: calc(100vh - 195px); overflow: auto; scrollbar-gutter: stable; }
+.selection-summary { padding: 8px 10px; margin: 8px 0; color: var(--green); background: #edf5ee; border-radius: 4px; }
+.more-clips { margin-top: 10px; }
+.more-clips summary { cursor: pointer; color: var(--green); padding: 6px 2px; }
 .empty { color: var(--muted); padding: 18px 12px; font-size: 13px; }
 
 .ai-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 17px; border-bottom: 1px solid var(--line); }
