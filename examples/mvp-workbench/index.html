@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>DocLens · 多文档研究工作台原型</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="workbench.css">
+  <script defer src="demo-data.js"></script>
+  <script defer src="archive.js"></script>
+  <script defer src="workbench.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <input type="file" id="import-files" accept=".md,.markdown,.txt" multiple hidden>
+  <input type="file" id="import-bundle" accept=".zip" hidden>
+  <noscript>请启用 JavaScript 查看本地交互原型。</noscript>
+</body>
+</html>

@@ -1,0 +1,240 @@
+{
+  "browser": "Microsoft Edge headless (local files)",
+  "checks": [
+    {
+      "name": "project: 1280px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "library: 1280px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "matrix: 1280px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "search: 1280px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "discover: 1280px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "version: 1280px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "notes: 1280px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "settings: 1280px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "tasks: 1280px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "project: 1440px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "library: 1440px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "matrix: 1440px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "search: 1440px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "discover: 1440px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "version: 1440px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "notes: 1440px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "settings: 1440px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "tasks: 1440px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "project: 1920px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "library: 1920px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "matrix: 1920px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "search: 1920px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "discover: 1920px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "version: 1920px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "notes: 1920px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "settings: 1920px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "tasks: 1920px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "project: 720px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "library: 720px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "matrix: 720px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "search: 720px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "discover: 720px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "version: 720px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "notes: 720px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "settings: 720px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "tasks: 720px no page overflow",
+      "pass": true
+    },
+    {
+      "name": "matrix cell opens correct evidence",
+      "pass": true
+    },
+    {
+      "name": "manual confirmation is stored",
+      "pass": true
+    },
+    {
+      "name": "multi-source citations retained",
+      "pass": true
+    },
+    {
+      "name": "evidence opens original block",
+      "pass": true
+    },
+    {
+      "name": "custom dimension preserves missing status",
+      "pass": true
+    },
+    {
+      "name": "manual matrix edit retains source evidence",
+      "pass": true
+    },
+    {
+      "name": "actual literal search finds correct document",
+      "pass": true
+    },
+    {
+      "name": "semantic mode is explicitly preset",
+      "pass": true
+    },
+    {
+      "name": "task conversion retains source task",
+      "pass": true
+    },
+    {
+      "name": "notes and citations survive reload",
+      "pass": true
+    },
+    {
+      "name": "source change marks results stale",
+      "pass": true
+    },
+    {
+      "name": "unavailable historical evidence never maps to new text",
+      "pass": true
+    },
+    {
+      "name": "task cancellation retains old results",
+      "pass": true
+    },
+    {
+      "name": "retry finishes as a separate run",
+      "pass": true
+    },
+    {
+      "name": "offline mode blocks external workflow",
+      "pass": true
+    },
+    {
+      "name": "authorization previews exact text and no real send",
+      "pass": true
+    },
+    {
+      "name": "actual Markdown import can be read",
+      "pass": true
+    },
+    {
+      "name": "share ZIP roundtrip preserves note and imported text",
+      "pass": true
+    },
+    {
+      "name": "bad package preserves current project",
+      "pass": true
+    },
+    {
+      "name": "Markdown CSV and ZIP downloads exist",
+      "pass": true
+    },
+    {
+      "name": "all demo evidence source spans are real",
+      "pass": true
+    },
+    {
+      "name": "no runtime errors or remote requests",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "requests": [],
+  "failure": null
+}
